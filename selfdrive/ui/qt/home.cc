@@ -94,7 +94,7 @@ void HomeWindow::offroadTransition(bool offroad) {
     slayout->setCurrentWidget(onroad);
     printf("onroadTransition\n");
     UIState* s = uiState();
-    s->show_brightness_timer = 2000;
+    s->show_brightness_timer = (int)(10./0.05);
   }
 }
 
@@ -115,7 +115,7 @@ void HomeWindow::mousePressEvent(QMouseEvent* e) {
   }
 
   UIState* s = uiState();
-  s->show_brightness_timer = 200;
+  s->show_brightness_timer = 100;
 }
 
 void HomeWindow::mouseDoubleClickEvent(QMouseEvent* e) {
