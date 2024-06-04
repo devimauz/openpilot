@@ -744,7 +744,7 @@ void Device::updateBrightness(const UIState &s) {
 
     if (s.show_brightness_timer > 0) {
         UIState* s1 = uiState();
-        s1.show_brightness_timer--;
+        s1->show_brightness_timer--;
     }
     else clipped_brightness *= s.show_brightness_ratio;
 
