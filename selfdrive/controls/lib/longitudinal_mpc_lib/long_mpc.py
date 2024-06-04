@@ -450,6 +450,7 @@ class LongitudinalMpc:
     carrotTest3 = Params().get_int("CarrotTest3")
     if carrotTest3 in [1,2]:
       check_cut_out = radarstate.leadOne.dPath * radarstate.leadOne.vLat
+      print(radarstate.leadOne.dPath + radarstate.leadOne.vLat)
       if check_cut_out > 0:
         t_follow *= interp(abs(radarstate.leadOne.dPath + radarstate.leadOne.vLat), [0.5, 1.0, 2.0], [1.0, 0.5, 0.2])
       elif carrotTest3 == 2:
