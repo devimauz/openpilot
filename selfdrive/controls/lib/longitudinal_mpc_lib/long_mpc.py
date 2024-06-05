@@ -454,7 +454,7 @@ class LongitudinalMpc:
       if check_cut_out > 0:
         t_follow *= interp(abs(radarstate.leadOne.dPath + radarstate.leadOne.vLat), [0.5, 1.0, 2.0], [1.0, 0.5, 0.2])
       elif carrotTest3 == 2:
-        t_follow *= interp(abs(radarstate.leadOne.vLat), [0.5, 1.0, 2.0], [1.0, 1.5, 2.0])
+        t_follow *= interp(abs(radarstate.leadOne.vLat), [0.5, 1.0, 2.0], [1.0, 1.1, 1.3])
     self.t_follow = t_follow
     
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
