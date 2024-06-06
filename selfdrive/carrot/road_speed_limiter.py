@@ -874,7 +874,6 @@ def main():
         unix_now = time.mktime(datetime.now().timetuple())
 
         navi_controller._V_EGO = v_ego = CS.vEgo if CS is not None else float(nPosSpeed)/3.6
-        navi_controller._V_EGO = 0.1
         if sdi_valid:
           if not location_valid and CS is not None:
             diff_angle = nPosAngle - bearing;
