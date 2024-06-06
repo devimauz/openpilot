@@ -370,6 +370,7 @@ def estimate_position(lat, lon, speed, angle, dt):
     return new_lat, new_lon
 
 def main():
+  global _V_EGO
   print("RoadLimitSpeed Started.....")
   server = RoadLimitSpeedServer()
 
