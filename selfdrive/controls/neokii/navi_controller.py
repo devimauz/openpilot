@@ -142,7 +142,6 @@ class NaviServer:
         pass
 
   def update_thread(self, sm):
-    global _V_EGO
     rk = Ratekeeper(10, print_delay_threshold=None)
 
     while not terminate_flag.is_set():
@@ -313,7 +312,6 @@ def send_obstacle(cam_type, distance, speed, v_ego, s):
     sock.sendto(data_in_bytes, ('127.0.0.1', 3946))
 
 def publish_thread(server):
-  global _V_EGO
   sm = server.sm
   naviData = messaging.pub_sock('naviData')
   rk = Ratekeeper(3.0, print_delay_threshold=None)
