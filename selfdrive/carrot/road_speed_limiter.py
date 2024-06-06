@@ -370,7 +370,6 @@ def estimate_position(lat, lon, speed, angle, dt):
     return new_lat, new_lon
 
 def main():
-  global _V_EGO
   print("RoadLimitSpeed Started.....")
   server = RoadLimitSpeedServer()
 
@@ -873,7 +872,7 @@ def main():
 
         xPosValidCount = max(0, xPosValidCount - 1)
         unix_now = time.mktime(datetime.now().timetuple())
-        _V_EGO = v_ego = CS.vEgo if CS is not None else float(nPosSpeed)/3.6
+        navi_controller._V_EGO = v_ego = CS.vEgo if CS is not None else float(nPosSpeed)/3.6
         if sdi_valid:
           if not location_valid and CS is not None:
             diff_angle = nPosAngle - bearing;
