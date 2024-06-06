@@ -150,6 +150,7 @@ class NaviServer:
 
       if True:#sm.updated['carState']:
         v_ego = _V_EGO #sm['carState'].vEgo
+        print(v_ego)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
           data_in_bytes = struct.pack('!f', v_ego)
           sock.sendto(data_in_bytes, ('127.0.0.1', 3847))
