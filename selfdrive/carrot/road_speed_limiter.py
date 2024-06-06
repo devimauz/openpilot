@@ -23,7 +23,7 @@ import subprocess
 from openpilot.selfdrive.navd.helpers import Coordinate
 import traceback
 
-from openpilot.selfdrive.controls.neokii.navi_controller import _V_EGO
+import openpilot.selfdrive.controls.neokii.navi_controller as navi_controller
 
 CAMERA_SPEED_FACTOR = 1.05
 
