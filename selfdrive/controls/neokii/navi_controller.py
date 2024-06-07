@@ -29,12 +29,12 @@ def set_v_ego(v_ego):
   global _V_EGO
   with _V_EGO_LOCK:
     _V_EGO = v_ego
-    print("set_v_ego=", v_ego, _V_EGO)
+    print("set_v_ego=", v_ego, _V_EGO, id(navi_controller))
 
 def get_v_ego():
   global _V_EGO
   with _V_EGO_LOCK:
-    print("get_v_ego=", _V_EGO)
+    print("get_v_ego=", _V_EGO, id(navi_controller))
     return _V_EGO
 
 class Port:
