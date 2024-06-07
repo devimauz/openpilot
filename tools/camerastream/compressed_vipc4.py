@@ -167,7 +167,7 @@ if __name__ == "__main__":
   vision_streams = [
     VisionStreamType.VISION_STREAM_ROAD,
   ]
-  frame_queue = frame_queue #Queue()
+  frame_queue = Queue()
   yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
 
   cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
