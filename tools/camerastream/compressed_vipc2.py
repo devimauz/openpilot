@@ -14,10 +14,6 @@ from cereal.visionipc import VisionIpcServer, VisionStreamType
 
 V4L2_BUF_FLAG_KEYFRAME = 8
 
-# start encoderd
-# also start cereal messaging bridge
-# then run this "./compressed_vipc.py <ip>"
-
 ENCODE_SOCKETS = {
     VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
     VisionStreamType.VISION_STREAM_WIDE_ROAD: "wideRoadEncodeData",
@@ -30,7 +26,7 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
         print(f"start decoder for {sock_name}, {W}x{H}")
 
     if nvidia:
-        os.environ["NV_LOW_LATENCY"] = "3"    # both bLowLatency and CUVID_PKT_ENDOFPICTURE
+        os.environ["NV_LOW_LATENCY"] = "3"
         sys.path += os.environ["LD_LIBRARY_PATH"].split(":")
         import PyNvCodec as nvc
 
@@ -50,7 +46,7 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
     seen_iframe = False
 
     time_q = []
-    model = YOLO('yolov8n.pt')  # Load YOLOv8n model
+    model = YOLO('yolov8n.pt')
 
     while True:
         msgs = messaging.drain_sock(sock, wait_for_one=True)
@@ -68,7 +64,6 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
             frame_latency = ((evta.idx.timestampEof / 1e9) - (evta.idx.timestampSof / 1e9)) * 1000
             process_latency = ((evt.logMonoTime / 1e9) - (evta.idx.timestampEof / 1e9)) * 1000
 
-            # put in header (first)
             if not seen_iframe:
                 if nvidia:
                     nvDec.DecodeSurfaceFromPacket(np.frombuffer(evta.header, dtype=np.uint8))
@@ -100,14 +95,11 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
             vipc_server.send(vst, img_yuv.data, cnt, int(time_q[0] * 1e9), int(time.monotonic() * 1e9))
             cnt += 1
 
-            # Convert YUV to BGR for YOLO and OpenCV
             yuv_image = img_yuv.reshape((H * 3 // 2, W))
             bgr_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2BGR_I420)
 
-            # Run YOLOv8n inference
             results = model(bgr_image)
 
-            # Draw bounding boxes
             for result in results:
                 for bbox in result.boxes:
                     x1, y1, x2, y2 = bbox.xyxy.cpu().numpy().astype(int)
@@ -115,7 +107,6 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
                     cv2.rectangle(bgr_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
                     cv2.putText(bgr_image, f'{conf:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-            # Display the image
             cv2.imshow(f'YOLOv8n - {sock_name}', bgr_image)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
