@@ -92,7 +92,8 @@ def decoder(addr, vipc_server, vst, W, H, yolov8_model, debug=False):
                     cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
         cv2.imshow("Captured Frame with YOLOv8", img_rgb)
-        cv2.waitKey(1)  # Display the frame for 1 ms
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
+            break
         last_capture_time = current_time
 
       img_yuv = img_yuv.flatten()
@@ -155,3 +156,4 @@ if __name__ == "__main__":
 
   cvipc = CompressedVipc(addr, vision_streams, debug=debug)
   cvipc.join()
+  cv2.destroyAllWindows()  # Ensure all OpenCV windows are destroyed at the end
