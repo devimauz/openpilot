@@ -43,16 +43,8 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
         height, width = 480, 640
         img_rgb = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
 
-        for result in results:
-            if result.boxes:  # Check if there are any detections
-                for box in result.boxes:
-                    xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
-                    conf = box.conf[0].cpu().numpy()  # Get the confidence score
-                    cls = box.cls[0].cpu().numpy()  # Get the class label
-                    cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
-                    cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-        #cv2.imshow("Captured Frame with YOLOv8", img_rgb)
+        cv2.imshow("Captured Frame with YOLOv8", img_rgb)
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
             break
     cv2.destroyAllWindows()
