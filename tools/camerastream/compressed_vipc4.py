@@ -3,11 +3,10 @@ import av
 import os
 import sys
 import numpy as np
-import multiprocessing
+import threading
 import time
 import cv2  # Import OpenCV for image display
 from queue import Queue
-from threading import Thread
 
 import cereal.messaging as messaging
 from cereal.visionipc import VisionIpcServer, VisionStreamType
@@ -71,7 +70,7 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
 
   time_q = []
   last_capture_time = time.time()
-  while 1:
+  while True:
     msgs = messaging.drain_sock(sock, wait_for_one=True)
     for evt in msgs:
       evta = getattr(evt, evt.which())
@@ -145,11 +144,11 @@ class CompressedVipc:
     yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
-      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, self.frame_queue, debug))
+      p = threading.Thread(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, self.frame_queue, debug))
       p.start()
       self.procs.append(p)
 
-    self.display_thread = Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
+    self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
     self.display_thread.start()
 
   def join(self):
