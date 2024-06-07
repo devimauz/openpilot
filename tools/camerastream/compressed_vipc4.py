@@ -164,8 +164,8 @@ class CompressedVipc:
 def main():
 
   # 이미지의 크기 설정 (예: 512x512)
-  height = 512
-  width = 512
+  height = 1208
+  width = 1928
 
   # 랜덤 이미지 생성 (0에서 255 사이의 값으로 채워진 height x width x 3 크기의 배열)
   random_image = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
@@ -177,7 +177,7 @@ def main():
   cv2.waitKey(0)
 
   # 창 닫기
-  cv2.destroyAllWindows()
+  #cv2.destroyAllWindows()
 
   frame_queue = Queue()
   yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
