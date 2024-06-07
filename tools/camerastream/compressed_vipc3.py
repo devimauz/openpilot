@@ -40,7 +40,7 @@ points = np.array([[100, 300], [200, 250], [300, 300], [200, 350]], np.int32)
 points = points.reshape((-1, 1, 2))
 color = (255, 0, 255)  # 자주색
 thickness = 2
-cv2.polylines(image, [points], isClosed=True, color, thickness)
+cv2.polylines(image, [points], isClosed=True, color=color, thickness=thickness)
 
 # 텍스트 그리기
 text = "Hello OpenCV"
