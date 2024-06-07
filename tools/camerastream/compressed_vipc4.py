@@ -195,8 +195,8 @@ def main():
   debug = True
 
   vision_streams = [
-    #VisionStreamType.VISION_STREAM_ROAD,
-    VisionStreamType.VISION_STREAM_WIDE_ROAD,
+    VisionStreamType.VISION_STREAM_ROAD,
+    #VisionStreamType.VISION_STREAM_WIDE_ROAD,
   ]
 
   cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
