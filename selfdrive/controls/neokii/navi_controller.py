@@ -399,7 +399,7 @@ def main():
 
   while True:
     server.sm.update()
-    server.v_ego += 0.1
+    server.v_ego = _V_EGO
     time.sleep(0.1)
     pass
 
