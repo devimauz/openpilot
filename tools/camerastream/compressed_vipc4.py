@@ -27,6 +27,13 @@ def run_yolov8_on_frame(model, frame):
     results = model(frame)  # Run YOLOv8 on the frame
     return results
 
+def resize_image(image, scale_percent):
+    width = int(image.shape[1] * scale_percent / 100)
+    height = int(image.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    resized = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    return resized
+
 def frame_processor(frame_queue, yolov8_model, debug=False):
     while True:
         frame = frame_queue.get()
@@ -47,7 +54,7 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
                     cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
         print(results)
-        cv2.imshow("Captured Frame with YOLOv8", img_rgb)
+        cv2.imshow("Captured Frame with YOLOv8", resize_image(img_rgb, 50))
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
             break
     cv2.destroyAllWindows()
