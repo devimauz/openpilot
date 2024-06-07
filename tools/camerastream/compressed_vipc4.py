@@ -20,7 +20,15 @@ ENCODE_SOCKETS = {
   VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
 }
 
-def decoder(addr, vipc_server, vst, W, H, debug=False):
+def load_yolov8_model():
+    from ultralytics import YOLO  # Import YOLO from ultralytics
+    return YOLO("yolov8n.pt")  # Load the YOLOv8 model
+
+def run_yolov8_on_frame(model, frame):
+    results = model(frame)  # Run YOLOv8 on the frame
+    return results
+
+def decoder(addr, vipc_server, vst, W, H, yolov8_model, debug=False):
   sock_name = ENCODE_SOCKETS[vst]
   if debug:
     print(f"start decoder for {sock_name}, {W}x{H}")
@@ -69,9 +77,22 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
       current_time = time.time()
       if current_time - last_capture_time >= 1:
         img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
-        cv2.imwrite(f"frame_{cnt}.jpg", img_rgb)  # Save the frame for debugging
-        #cv2.imshow("Captured Frame", img_rgb)
-        #cv2.waitKey(1)  # Display the frame for 1 ms
+        
+        # Run YOLOv8 on the frame and get results
+        results = run_yolov8_on_frame(yolov8_model, img_rgb)
+        
+        # Display the frame with detections
+        for result in results:
+            if result.boxes:  # Check if there are any detections
+                for box in result.boxes:
+                    xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
+                    conf = box.conf[0].cpu().numpy()  # Get the confidence score
+                    cls = box.cls[0].cpu().numpy()  # Get the class label
+                    cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
+                    cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+        cv2.imshow("Captured Frame with YOLOv8", img_rgb)
+        cv2.waitKey(1)  # Display the frame for 1 ms
         last_capture_time = current_time
 
       img_yuv = img_yuv.flatten()
@@ -108,9 +129,10 @@ class CompressedVipc:
     self.vipc_server.start_listener()
 
     self.procs = []
+    yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
-      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, debug))
+      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, yolov8_model, debug))
       p.start()
       self.procs.append(p)
 
