@@ -36,14 +36,6 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
             break
         img_rgb, cnt = frame
 
-        # Run YOLOv8 on the frame and get results
-        results = run_yolov8_on_frame(yolov8_model, img_rgb)
-
-        # Display the frame with detections
-        height, width = 480, 640
-        img_rgb = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
-
-
         cv2.imshow("Captured Frame with YOLOv8", img_rgb)
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
             break
