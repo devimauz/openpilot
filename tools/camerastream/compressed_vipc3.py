@@ -69,9 +69,9 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
 
       # Convert YUV to BGR for displaying with cv2
       img_bgr = frames[0].to_ndarray(format='bgr24')
-      cv2.imshow("Video Stream", img_bgr)
-      if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+      #cv2.imshow("Video Stream", img_bgr)
+      #if cv2.waitKey(1) & 0xFF == ord('q'):
+      #  break
 
       pc_latency = (time.monotonic()-time_q[0])*1000
       time_q = time_q[1:]
