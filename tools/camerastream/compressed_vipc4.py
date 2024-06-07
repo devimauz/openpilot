@@ -178,7 +178,7 @@ def main():
 
   # 창 닫기
   cv2.destroyAllWindows()
-  return
+
   frame_queue = Queue()
   yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
   frame_processor(frame_queue, yolov8_model, debug=True)
