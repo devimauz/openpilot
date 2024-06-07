@@ -103,14 +103,14 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
         img_yuv = np.hstack((y, uv))
 
       # Run YOLO on the decoded frame
-      frame_rgb = frames[0].to_image().convert('RGB')
-      if debug:
-        print("Running YOLO")
-      results = run_yolo(np.array(frame_rgb))
+      #frame_rgb = frames[0].to_image().convert('RGB')
+      #if debug:
+      #  print("Running YOLO")
+      #results = run_yolo(np.array(frame_rgb))
 
       # Process YOLO results
-      if debug:
-        print(results.pandas().xyxy[0])  # print results in pandas dataframe format
+      #if debug:
+      #  print(results.pandas().xyxy[0])  # print results in pandas dataframe format
 
       vipc_server.send(vst, img_yuv.data, cnt, int(time_q[0]*1e9), int(time.monotonic()*1e9))
       cnt += 1
