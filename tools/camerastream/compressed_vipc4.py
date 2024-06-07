@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+import av
+import os
+import sys
 import numpy as np
 import cv2  # Import OpenCV for image display
 
