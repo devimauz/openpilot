@@ -12,8 +12,6 @@ from cereal.visionipc import VisionIpcServer, VisionStreamType
 
 
 def main():
-  print("hellow world")
-  return
   # 이미지의 크기 설정 (예: 512x512)
   height = 512
   width = 512
@@ -22,7 +20,9 @@ def main():
   random_image = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
 
   # 이미지 표시
+  print("show image")
   cv2.imshow('Random Image', random_image)
+  print("show end")
 
   # 아무 키나 누를 때까지 대기
   cv2.waitKey(0)
