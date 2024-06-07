@@ -1,4 +1,3 @@
-import av
 import os
 import sys
 import numpy as np
@@ -53,6 +52,8 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
     cv2.destroyAllWindows()
 
 def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
+  import av
+
   sock_name = ENCODE_SOCKETS[vst]
   if debug:
     print(f"start decoder for {sock_name}, {W}x{H}")
@@ -161,8 +162,6 @@ class CompressedVipc:
     self.join()
 
 def main():
-  import cv2
-  import numpy as np
 
   # 이미지의 크기 설정 (예: 512x512)
   height = 512
