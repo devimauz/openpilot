@@ -172,4 +172,8 @@ if __name__ == "__main__":
         VisionStreamType.VISION_STREAM_ROAD,
         VisionStreamType.VISION_STREAM_WIDE_ROAD,
         VisionStreamType.VISION_STREAM_DRIVER,
-   
+    ]
+
+    vsts = [vision_streams[int(x)] for x in args.cams.split(",")]
+    cvipc = CompressedVipc(args.addr, vsts, args.nvidia, debug=(not args.silent))
+    cvipc.join()
