@@ -180,6 +180,8 @@ class CompressedVipc:
     self.join()
 
 def main():
+  frame_queue = Queue()
+  yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
   frame_processor(frame_queue, yolov8_model, debug=True)
   return
   addr = "192.168.0.28"
@@ -188,8 +190,6 @@ def main():
   vision_streams = [
     VisionStreamType.VISION_STREAM_ROAD,
   ]
-  frame_queue = Queue()
-  yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
 
   #cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
   frame_processor(frame_queue, yolov8_model, debug=True)
