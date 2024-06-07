@@ -108,7 +108,7 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
 
       # Capture and display the frame every second
       current_time = time.time()
-      if current_time - last_capture_time >= 1:
+      if current_time - last_capture_time >= 0.2:
         img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
         frame_queue.put((img_rgb, cnt))
         last_capture_time = current_time
