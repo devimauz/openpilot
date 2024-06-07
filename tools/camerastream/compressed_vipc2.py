@@ -7,6 +7,7 @@ import numpy as np
 import multiprocessing
 import time
 import cv2
+import torch
 from ultralytics import YOLO
 
 import cereal.messaging as messaging
@@ -46,6 +47,7 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
     seen_iframe = False
 
     time_q = []
+    torch.cuda.is_available = lambda: False  # Disable CUDA
     model = YOLO('yolov8n.pt').to('cpu')  # Force model to use CPU
 
     while True:
