@@ -874,6 +874,7 @@ def main():
         unix_now = time.mktime(datetime.now().timetuple())
 
         v_ego = CS.vEgo if CS is not None else float(nPosSpeed)/3.6
+        v_ego = 0.22
         set_v_ego(v_ego)
         if sdi_valid:
           if not location_valid and CS is not None:
