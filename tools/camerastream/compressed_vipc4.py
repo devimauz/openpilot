@@ -182,10 +182,10 @@ def main():
   cv2.imshow('Random Image', random_image)
 
   # 아무 키나 누를 때까지 대기
-  cv2.waitKey(0)
+  #cv2.waitKey(0)
 
   # 창 닫기
-  #cv2.destroyAllWindows()
+  cv2.destroyAllWindows()
 
   frame_queue = Queue()
   yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
