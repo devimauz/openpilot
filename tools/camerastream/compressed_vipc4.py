@@ -40,6 +40,9 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
         results = run_yolov8_on_frame(yolov8_model, img_rgb)
 
         # Display the frame with detections
+        height, width = 480, 640
+        img_rgb = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+
         for result in results:
             if result.boxes:  # Check if there are any detections
                 for box in result.boxes:
