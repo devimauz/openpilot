@@ -23,8 +23,6 @@ import subprocess
 from openpilot.selfdrive.navd.helpers import Coordinate
 import traceback
 
-from openpilot.selfdrive.controls.neokii.navi_controller import set_v_ego
-
 CAMERA_SPEED_FACTOR = 1.05
 
 
@@ -750,7 +748,6 @@ def main():
         unix_now = time.mktime(datetime.now().timetuple())
 
         v_ego = CS.vEgo if CS is not None else float(nPosSpeed)/3.6
-        set_v_ego(0.3)
 
         if sdi_valid:
           if not location_valid and CS is not None:
