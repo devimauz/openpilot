@@ -180,6 +180,8 @@ class CompressedVipc:
     self.join()
 
 if __name__ == "__main__":
+  frame_processor(frame_queue, yolov8_model, debug=True)
+  return
   addr = "192.168.0.28"
   debug = True
 
