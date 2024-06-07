@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import av
 import os
-import sys
 import numpy as np
 import multiprocessing
 import time
@@ -32,10 +31,11 @@ def yuv_to_rgb(y, u, v):
     return rgb.astype(np.uint8)
 
 
-def extract_image(buf):
-    y = np.array(buf.data[:buf.uv_offset], dtype=np.uint8).reshape((-1, buf.stride))[:buf.height, :buf.width]
-    u = np.array(buf.data[buf.uv_offset::2], dtype=np.uint8).reshape((-1, buf.stride//2))[:buf.height//2, :buf.width//2]
-    v = np.array(buf.data[buf.uv_offset+1::2], dtype=np.uint8).reshape((-1, buf.stride//2))[:buf.height//2, :buf.width//2]
+def extract_image(data, W, H):
+    uv_offset = W * H
+    y = np.array(data[:uv_offset], dtype=np.uint8).reshape((H, W))
+    u = np.array(data[uv_offset:uv_offset + (uv_offset // 4)], dtype=np.uint8).reshape((H // 2, W // 2))
+    v = np.array(data[uv_offset + (uv_offset // 4):], dtype=np.uint8).reshape((H // 2, W // 2))
 
     return yuv_to_rgb(y, u, v)
 
@@ -83,17 +83,12 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
                 continue
             assert len(frames) == 1
             img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p')).flatten()
-            uv_offset = H * W
-            y = img_yuv[:uv_offset]
-            uv = img_yuv[uv_offset:].reshape(2, -1).ravel('F')
-            img_yuv = np.hstack((y, uv))
 
             vipc_server.send(vst, img_yuv.data, cnt, int(time_q[0] * 1e9), int(time.monotonic() * 1e9))
             cnt += 1
 
             # Convert YUV to RGB for displaying using custom conversion function
-            yuv_frame = np.frombuffer(img_yuv.data, dtype=np.uint8).reshape((H * 3 // 2, W))
-            bgr_frame = extract_image(yuv_frame)
+            bgr_frame = extract_image(img_yuv, W, H)
             cv2.imshow(f"Stream {vst}", bgr_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 return
@@ -104,7 +99,7 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
                 print("%2d %4d %.3f %.3f roll %6.2f ms latency %6.2f ms + %6.2f ms + %6.2f ms = %6.2f ms"
                       % (len(msgs), evta.idx.encodeId, evt.logMonoTime / 1e9, evta.idx.timestampEof / 1e6, frame_latency,
                          process_latency, network_latency, pc_latency, process_latency + network_latency + pc_latency), len(evta.data), sock_name)
-            
+
             time.sleep(0.1)
 
 
