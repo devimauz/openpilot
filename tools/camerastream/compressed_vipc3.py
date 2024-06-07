@@ -64,12 +64,13 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
         continue
       assert len(frames) == 1
       img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
-      
+
       # Capture and display the frame every second
       current_time = time.time()
       if current_time - last_capture_time >= 1:
         img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
         cv2.imshow("Captured Frame", img_rgb)
+        cv2.imwrite(f"frame_{cnt}.jpg", img_rgb)  # Save the frame for debugging
         cv2.waitKey(1)  # Display the frame for 1 ms
         last_capture_time = current_time
 
@@ -124,7 +125,7 @@ class CompressedVipc:
 
 if __name__ == "__main__":
   addr = "192.168.0.28"
-  debug = True
+  debug = False
 
   vision_streams = [
     VisionStreamType.VISION_STREAM_ROAD,
