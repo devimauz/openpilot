@@ -29,12 +29,42 @@ def run_yolov8_on_frame(model, frame):
     return results
 
 def frame_processor(frame_queue, yolov8_model, debug=False):
+    import cv2
+    import numpy as np
+
+    # 이미지의 크기 설정 (예: 512x512)
+    height = 512
+    width = 512
+
+    # 랜덤 이미지 생성 (0에서 255 사이의 값으로 채워진 height x width x 3 크기의 배열)
+    random_image = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+
+    # 이미지 표시
+    cv2.imshow('Random Image', random_image)
+
+    # 아무 키나 누를 때까지 대기
+    cv2.waitKey(0)
+
+    # 창 닫기
+    cv2.destroyAllWindows()
+    return
     while True:
         frame = frame_queue.get()
         if frame is None:
             break
         img_rgb, cnt = frame
 
+        # Run YOLOv8 on the frame and get results
+        results = run_yolov8_on_frame(yolov8_model, img_rgb)
+
+        for result in results:
+            if result.boxes:  # Check if there are any detections
+                for box in result.boxes:
+                    xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
+                    conf = box.conf[0].cpu().numpy()  # Get the confidence score
+                    cls = box.cls[0].cpu().numpy()  # Get the class label
+                    cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
+                    cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
         cv2.imshow("Captured Frame with YOLOv8", img_rgb)
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
