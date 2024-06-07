@@ -22,6 +22,12 @@ import time
 CAMERA_SPEED_FACTOR = 1.05
 terminate_flag = threading.Event()
 
+_V_EGO = 0.0
+
+def set_v_ego(v_ego):
+  global _V_EGO
+  _V_EGO = v_ego
+
 class Port:
   BROADCAST_PORT = 2899
   RECEIVE_PORT = 3843

@@ -23,7 +23,7 @@ import subprocess
 from openpilot.selfdrive.navd.helpers import Coordinate
 import traceback
 
-#import openpilot.selfdrive.controls.neokii.navi_controller import set_v_ego
+from openpilot.selfdrive.controls.neokii.navi_controller import set_v_ego
 
 CAMERA_SPEED_FACTOR = 1.05
 
@@ -246,7 +246,6 @@ def estimate_position(lat, lon, speed, angle, dt):
     return new_lat, new_lon
 
 def main():
-  global _V_EGO
   print("RoadLimitSpeed Started.....")
   server = RoadLimitSpeedServer()
 
@@ -751,8 +750,7 @@ def main():
         unix_now = time.mktime(datetime.now().timetuple())
 
         v_ego = CS.vEgo if CS is not None else float(nPosSpeed)/3.6
-        v_ego = 0.3
-        _V_EGO = v_ego
+        set_v_ego(0.3)
 
         if sdi_valid:
           if not location_valid and CS is not None:
