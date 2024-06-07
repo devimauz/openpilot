@@ -30,6 +30,7 @@ def set_v_ego(v_ego):
 
 def get_v_ego():
   global _V_EGO
+  print("get_v_ego=", _V_EGO)
   return _V_EGO
 
 class Port:
