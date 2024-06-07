@@ -34,7 +34,7 @@ def run_yolo(frame):
   img = Image.fromarray(frame)
   #results = yolo_model(img, size=640)  # size can be changed depending on your requirement
 
-  results = model(img, size=640)
+  results = model(img)
 
   return results
 
