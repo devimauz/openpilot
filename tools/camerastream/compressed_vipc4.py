@@ -17,6 +17,8 @@ V4L2_BUF_FLAG_KEYFRAME = 8
 
 ENCODE_SOCKETS = {
   VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
+  VisionStreamType.VISION_STREAM_WIDE_ROAD: "wideRoadEncodeData",
+  VisionStreamType.VISION_STREAM_DRIVER: "driverEncodeData",
 }
 
 def load_yolov8_model():
@@ -193,7 +195,8 @@ def main():
   debug = True
 
   vision_streams = [
-    VisionStreamType.VISION_STREAM_ROAD,
+    #VisionStreamType.VISION_STREAM_ROAD,
+    VisionStreamType.VISION_STREAM_WIDE_ROAD,
   ]
 
   cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
