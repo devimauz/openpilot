@@ -28,6 +28,9 @@ def set_v_ego(v_ego):
   _V_EGO = v_ego
   print("set_v_ego=", v_ego, _V_EGO)
 
+def get_v_ego():
+  return _V_EGO
+
 class Port:
   BROADCAST_PORT = 2899
   RECEIVE_PORT = 3843
@@ -152,7 +155,7 @@ class NaviServer:
       #sm.update(0)
 
       if True:#sm.updated['carState']:
-        v_ego = _V_EGO #sm['carState'].vEgo
+        v_ego = get_v_ego() #sm['carState'].vEgo
         print(_V_EGO, v_ego)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
           data_in_bytes = struct.pack('!f', v_ego)
