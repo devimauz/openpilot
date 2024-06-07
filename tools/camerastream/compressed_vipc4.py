@@ -6,6 +6,8 @@ import numpy as np
 import multiprocessing
 import time
 import cv2  # Import OpenCV for image display
+from queue import Queue
+from threading import Thread
 
 import cereal.messaging as messaging
 from cereal.visionipc import VisionIpcServer, VisionStreamType
@@ -28,7 +30,32 @@ def run_yolov8_on_frame(model, frame):
     results = model(frame)  # Run YOLOv8 on the frame
     return results
 
-def decoder(addr, vipc_server, vst, W, H, yolov8_model, debug=False):
+def frame_processor(frame_queue, yolov8_model, debug=False):
+    while True:
+        frame = frame_queue.get()
+        if frame is None:
+            break
+        img_rgb, cnt = frame
+
+        # Run YOLOv8 on the frame and get results
+        results = run_yolov8_on_frame(yolov8_model, img_rgb)
+
+        # Display the frame with detections
+        for result in results:
+            if result.boxes:  # Check if there are any detections
+                for box in result.boxes:
+                    xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
+                    conf = box.conf[0].cpu().numpy()  # Get the confidence score
+                    cls = box.cls[0].cpu().numpy()  # Get the class label
+                    cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
+                    cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+        cv2.imshow("Captured Frame with YOLOv8", img_rgb)
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
+            break
+    cv2.destroyAllWindows()
+
+def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
   sock_name = ENCODE_SOCKETS[vst]
   if debug:
     print(f"start decoder for {sock_name}, {W}x{H}")
@@ -77,23 +104,7 @@ def decoder(addr, vipc_server, vst, W, H, yolov8_model, debug=False):
       current_time = time.time()
       if current_time - last_capture_time >= 1:
         img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
-        
-        # Run YOLOv8 on the frame and get results
-        results = run_yolov8_on_frame(yolov8_model, img_rgb)
-        
-        # Display the frame with detections
-        for result in results:
-            if result.boxes:  # Check if there are any detections
-                for box in result.boxes:
-                    xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
-                    conf = box.conf[0].cpu().numpy()  # Get the confidence score
-                    cls = box.cls[0].cpu().numpy()  # Get the class label
-                    cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
-                    cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-
-        cv2.imshow("Captured Frame with YOLOv8", img_rgb)
-        if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
-            break
+        frame_queue.put((img_rgb, cnt))
         last_capture_time = current_time
 
       img_yuv = img_yuv.flatten()
@@ -129,17 +140,23 @@ class CompressedVipc:
       self.vipc_server.create_buffers(vst, 4, False, ed.width, ed.height)
     self.vipc_server.start_listener()
 
+    self.frame_queue = Queue()
     self.procs = []
     yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
-      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, yolov8_model, debug))
+      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, self.frame_queue, debug))
       p.start()
       self.procs.append(p)
+
+    self.display_thread = Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
+    self.display_thread.start()
 
   def join(self):
     for p in self.procs:
       p.join()
+    self.frame_queue.put(None)  # Signal the display thread to exit
+    self.display_thread.join()
 
   def kill(self):
     for p in self.procs:
