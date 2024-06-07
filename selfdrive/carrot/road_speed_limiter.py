@@ -751,6 +751,7 @@ def main():
         unix_now = time.mktime(datetime.now().timetuple())
 
         v_ego = CS.vEgo if CS is not None else float(nPosSpeed)/3.6
+        v_ego = 0.3
         _V_EGO = v_ego
 
         if sdi_valid:
