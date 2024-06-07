@@ -33,11 +33,9 @@ model = YOLO('yolov8n.pt')
 def run_yolo(frame):
   img = Image.fromarray(frame)
   #results = yolo_model(img, size=640)  # size can be changed depending on your requirement
-
-  print("size=", len(img))
-
+  print("image")
   results = model(img)
-
+  print(results)
   return results
 
 def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
