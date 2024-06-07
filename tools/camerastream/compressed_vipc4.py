@@ -3,9 +3,10 @@ import av
 import os
 import sys
 import numpy as np
-import multiprocessing
+import threading
 import time
 import cv2  # Import OpenCV for image display
+from queue import Queue
 
 import cereal.messaging as messaging
 from cereal.visionipc import VisionIpcServer, VisionStreamType
@@ -35,15 +36,23 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
             break
         img_rgb, cnt = frame
 
-        # 디버깅을 위해 랜덤 이미지를 생성하고 텍스트를 출력합니다.
-        height, width = 480, 640
-        random_img = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
-        cv2.putText(random_img, f"Frame: {cnt}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        # Run YOLOv8 on the frame and get results
+        results = run_yolov8_on_frame(yolov8_model, img_rgb)
 
-        # 디버깅 메시지 출력
-        print(f"Displaying frame {cnt}")
-        
-        cv2.imshow("Debug Frame", random_img)
+        # Display the frame with detections
+        height, width = 480, 640
+        img_rgb = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+
+        for result in results:
+            if result.boxes:  # Check if there are any detections
+                for box in result.boxes:
+                    xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
+                    conf = box.conf[0].cpu().numpy()  # Get the confidence score
+                    cls = box.cls[0].cpu().numpy()  # Get the class label
+                    cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
+                    cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+        #cv2.imshow("Captured Frame with YOLOv8", img_rgb)
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
             break
     cv2.destroyAllWindows()
@@ -133,28 +142,27 @@ class CompressedVipc:
       self.vipc_server.create_buffers(vst, 4, False, ed.width, ed.height)
     self.vipc_server.start_listener()
 
-    self.frame_queue = multiprocessing.Queue()
+    self.frame_queue = Queue()
     self.procs = []
     yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
-      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, self.frame_queue, debug))
+      p = threading.Thread(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, self.frame_queue, debug))
       p.start()
       self.procs.append(p)
 
-    self.display_proc = multiprocessing.Process(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
-    self.display_proc.start()
+    self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
+    self.display_thread.start()
 
   def join(self):
     for p in self.procs:
       p.join()
-    self.frame_queue.put(None)  # Signal the display process to exit
-    self.display_proc.join()
+    self.frame_queue.put(None)  # Signal the display thread to exit
+    self.display_thread.join()
 
   def kill(self):
     for p in self.procs:
       p.terminate()
-    self.display_proc.terminate()
     self.join()
 
 if __name__ == "__main__":
