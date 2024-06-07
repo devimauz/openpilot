@@ -20,7 +20,7 @@ ENCODE_SOCKETS = {
   VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
 }
 
-def decoder(addr, vipc_server, vst, W, H, debug=False):
+def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
   sock_name = ENCODE_SOCKETS[vst]
   if debug:
     print(f"start decoder for {sock_name}, {W}x{H}")
@@ -35,7 +35,6 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
   seen_iframe = False
 
   time_q = []
-  last_capture_time = time.time()
   while 1:
     msgs = messaging.drain_sock(sock, wait_for_one=True)
     for evt in msgs:
@@ -65,14 +64,11 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
       assert len(frames) == 1
       img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
 
-      # Capture and display the frame every second
+      # Capture and put the frame into the queue every second
       current_time = time.time()
-      if current_time - last_capture_time >= 1:
-        img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
-        cv2.imwrite(f"frame_{cnt}.jpg", img_rgb)  # Save the frame for debugging
-        cv2.imshow("Captured Frame", img_rgb)
-        cv2.waitKey(1)  # Display the frame for 1 ms
-        last_capture_time = current_time
+      img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
+      if frame_queue.qsize() < 10:  # Prevent the queue from getting too full
+        frame_queue.put(img_rgb)
 
       img_yuv = img_yuv.flatten()
       uv_offset = H*W
@@ -91,7 +87,7 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
                  process_latency, network_latency, pc_latency, process_latency+network_latency+pc_latency ), len(evta.data), sock_name)
 
 class CompressedVipc:
-  def __init__(self, addr, vision_streams, debug=False):
+  def __init__(self, addr, vision_streams, frame_queue, debug=False):
     print("getting frame sizes")
     os.environ["ZMQ"] = "1"
     messaging.context = messaging.Context()
@@ -110,7 +106,7 @@ class CompressedVipc:
     self.procs = []
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
-      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, debug))
+      p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, frame_queue, debug))
       p.start()
       self.procs.append(p)
 
@@ -123,13 +119,28 @@ class CompressedVipc:
       p.terminate()
     self.join()
 
-if __name__ == "__main__":
-  addr = "192.168.0.28"
-  debug = True
-
+def main(addr, debug):
+  frame_queue = multiprocessing.Queue()
   vision_streams = [
     VisionStreamType.VISION_STREAM_ROAD,
   ]
 
-  cvipc = CompressedVipc(addr, vision_streams, debug=debug)
-  cvipc.join()
+  cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
+
+  try:
+    while True:
+      if not frame_queue.empty():
+        frame = frame_queue.get()
+        cv2.imshow("Captured Frame", frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+          break
+  except KeyboardInterrupt:
+    pass
+  finally:
+    cvipc.kill()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+  addr = "192.168.0.28"
+  debug = False
+  main(addr, debug)
