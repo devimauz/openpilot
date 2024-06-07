@@ -12,7 +12,8 @@ from cereal.visionipc import VisionIpcServer, VisionStreamType
 
 
 def main():
-
+  print("hellow world")
+  return
   # 이미지의 크기 설정 (예: 512x512)
   height = 512
   width = 512
