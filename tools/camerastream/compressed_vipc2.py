@@ -31,10 +31,10 @@ model = YOLO('yolov8n.pt')
 #transform = T.Compose([T.ToTensor()])
 
 def run_yolo(frame):
-  #img = Image.fromarray(frame)
+  img = Image.fromarray(frame)
   #results = yolo_model(img, size=640)  # size can be changed depending on your requirement
 
-  results = model(frame)
+  results = model(img, size=640)
 
   return results
 
