@@ -12,10 +12,6 @@ from cereal.visionipc import VisionIpcServer, VisionStreamType
 
 V4L2_BUF_FLAG_KEYFRAME = 8
 
-# start encoderd
-# also start cereal messaging bridge
-# then run this "./compressed_vipc.py <ip>"
-
 ENCODE_SOCKETS = {
   VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
 }
@@ -83,9 +79,8 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
         print("%2d %4d %.3f %.3f roll %6.2f ms latency %6.2f ms + %6.2f ms + %6.2f ms = %6.2f ms"
               % (len(msgs), evta.idx.encodeId, evt.logMonoTime/1e9, evta.idx.timestampEof/1e6, frame_latency,
                  process_latency, network_latency, pc_latency, process_latency+network_latency+pc_latency ), len(evta.data), sock_name)
-  
-  cv2.destroyAllWindows()
 
+  cv2.destroyAllWindows()
 
 class CompressedVipc:
   def __init__(self, addr, vision_streams, debug=False):
