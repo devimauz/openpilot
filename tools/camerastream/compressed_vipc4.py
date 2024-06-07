@@ -181,8 +181,6 @@ def main():
 
   frame_queue = Queue()
   yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
-  frame_processor(frame_queue, yolov8_model, debug=True)
-  return
   addr = "192.168.0.28"
   debug = True
 
@@ -190,9 +188,9 @@ def main():
     VisionStreamType.VISION_STREAM_ROAD,
   ]
 
-  #cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
+  cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
   frame_processor(frame_queue, yolov8_model, debug=True)
-  #cvipc.join()
+  cvipc.join()
   cv2.destroyAllWindows()  # Ensure all OpenCV windows are destroyed at the end
 
 if __name__ == "__main__":
