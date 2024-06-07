@@ -25,12 +25,11 @@ ENCODE_SOCKETS = {
 
 # Load YOLO model
 yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-yolo_model = yolo_model.autoshape()  # for PIL/cv2/np inputs and NMS
 transform = T.Compose([T.ToTensor()])
 
 def run_yolo(frame):
   img = Image.fromarray(frame)
-  results = yolo_model(img)
+  results = yolo_model(img, size=640)  # size can be changed depending on your requirement
   return results
 
 def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
