@@ -1,5 +1,4 @@
 import cv2  # Import OpenCV for image display
-import av
 #import os
 #import sys
 import numpy as np
@@ -23,6 +22,7 @@ def main():
   print("show image")
   cv2.imshow('Random Image', random_image)
   print("show end")
+  import av
 
   # 아무 키나 누를 때까지 대기
   cv2.waitKey(0)
