@@ -89,9 +89,9 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
 
             # Convert YUV to RGB for displaying using custom conversion function
             bgr_frame = extract_image(img_yuv, W, H)
-            cv2.imshow(f"Stream {vst}", bgr_frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                return
+            #cv2.imshow(f"Stream {vst}", bgr_frame)
+            #if cv2.waitKey(1) & 0xFF == ord('q'):
+            #    return
 
             pc_latency = (time.monotonic() - time_q[0]) * 1000
             time_q = time_q[1:]
