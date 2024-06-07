@@ -25,12 +25,11 @@ ENCODE_SOCKETS = {
 
 # Load YOLO model
 yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-yolo_model.eval()
+yolo_model = yolo_model.autoshape()  # for PIL/cv2/np inputs and NMS
 transform = T.Compose([T.ToTensor()])
 
 def run_yolo(frame):
   img = Image.fromarray(frame)
-  img = transform(img).unsqueeze(0)
   results = yolo_model(img)
   return results
 
@@ -40,7 +39,7 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
     print(f"start decoder for {sock_name}, {W}x{H}")
 
   if nvidia:
-    os.environ["NV_LOW_LATENCY"] = "3"    # both bLowLatency and CUVID_PKT_ENDOFPICTURE
+    os.environ["NV_LOW_LATENCY"] = "3"
     sys.path += os.environ["LD_LIBRARY_PATH"].split(":")
     import PyNvCodec as nvc
 
@@ -76,7 +75,6 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
       frame_latency = ((evta.idx.timestampEof/1e9) - (evta.idx.timestampSof/1e9))*1000
       process_latency = ((evt.logMonoTime/1e9) - (evta.idx.timestampEof/1e9))*1000
 
-      # put in header (first)
       if not seen_iframe:
         if nvidia:
           nvDec.DecodeSurfaceFromPacket(np.frombuffer(evta.header, dtype=np.uint8))
@@ -107,9 +105,11 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
 
       # Run YOLO on the decoded frame
       frame_rgb = frames[0].to_image().convert('RGB')
+      if debug:
+        print("Running YOLO")
       results = run_yolo(np.array(frame_rgb))
 
-      # Process YOLO results (example: print results)
+      # Process YOLO results
       if debug:
         print(results.pandas().xyxy[0])  # print results in pandas dataframe format
 
@@ -149,10 +149,12 @@ class CompressedVipc:
 
   def join(self):
     for p in self.procs:
+      print(f"Joining process {p.pid}")
       p.join()
 
   def kill(self):
     for p in self.procs:
+      print(f"Terminating process {p.pid}")
       p.terminate()
     self.join()
 

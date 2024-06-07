@@ -5,7 +5,8 @@ import numpy as np
 
 # Load YOLO model
 yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-yolo_model.eval()
+yolo_model = yolo_model.autoshape()  # for PIL/cv2/np inputs and NMS
+
 transform = T.Compose([T.ToTensor()])
 
 # Test YOLO with a sample image
