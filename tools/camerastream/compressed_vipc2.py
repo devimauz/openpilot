@@ -1,3 +1,43 @@
+import av
+import os
+import sys
+import argparse
+import numpy as np
+import multiprocessing
+import time
+import torch
+import torchvision.transforms as T
+from PIL import Image
+from cereal.visionipc import VisionIpcServer, VisionStreamType
+import cereal.messaging as messaging
+from ultralytics import YOLO
+import cv2
+
+V4L2_BUF_FLAG_KEYFRAME = 8
+
+# start encoderd
+# also start cereal messaging bridge
+# then run this "./compressed_vipc.py <ip>"
+
+ENCODE_SOCKETS = {
+  VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
+  VisionStreamType.VISION_STREAM_WIDE_ROAD: "wideRoadEncodeData",
+  VisionStreamType.VISION_STREAM_DRIVER: "driverEncodeData",
+}
+
+# Load YOLO model
+model = YOLO('yolov8n.pt')
+#yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+#transform = T.Compose([T.ToTensor()])
+
+def run_yolo(frame):
+  img = Image.fromarray(frame)
+  #results = yolo_model(img, size=640)  # size can be changed depending on your requirement
+  print("image")
+  results = model(img)
+  print(results)
+  return results
+
 def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
     sock_name = ENCODE_SOCKETS[vst]
     if debug:
