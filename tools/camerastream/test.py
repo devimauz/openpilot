@@ -1,10 +1,10 @@
+import cv2  # Import OpenCV for image display
 import av
 #import os
 #import sys
 import numpy as np
 import threading
 import time
-import cv2  # Import OpenCV for image display
 from queue import Queue
 
 import cereal.messaging as messaging
