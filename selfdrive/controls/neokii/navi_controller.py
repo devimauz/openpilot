@@ -23,15 +23,19 @@ CAMERA_SPEED_FACTOR = 1.05
 terminate_flag = threading.Event()
 
 _V_EGO = 0.0
+_V_EGO_LOCK = threading.Lock()
+
 def set_v_ego(v_ego):
   global _V_EGO
-  _V_EGO = v_ego
-  print("set_v_ego=", v_ego, _V_EGO)
+  with _V_EGO_LOCK
+    _V_EGO = v_ego
+    print("set_v_ego=", v_ego, _V_EGO)
 
 def get_v_ego():
   global _V_EGO
-  print("get_v_ego=", _V_EGO)
-  return _V_EGO
+  with _V_EGO_LOCK
+    print("get_v_ego=", _V_EGO)
+    return _V_EGO
 
 class Port:
   BROADCAST_PORT = 2899
