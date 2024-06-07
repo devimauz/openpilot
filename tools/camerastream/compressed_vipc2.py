@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import av
 import os
 import sys
@@ -5,13 +6,11 @@ import argparse
 import numpy as np
 import multiprocessing
 import time
-import torch
-import torchvision.transforms as T
-from PIL import Image
-from cereal.visionipc import VisionIpcServer, VisionStreamType
-import cereal.messaging as messaging
-from ultralytics import YOLO
 import cv2
+from ultralytics import YOLO
+
+import cereal.messaging as messaging
+from cereal.visionipc import VisionIpcServer, VisionStreamType
 
 V4L2_BUF_FLAG_KEYFRAME = 8
 
@@ -20,23 +19,10 @@ V4L2_BUF_FLAG_KEYFRAME = 8
 # then run this "./compressed_vipc.py <ip>"
 
 ENCODE_SOCKETS = {
-  VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
-  VisionStreamType.VISION_STREAM_WIDE_ROAD: "wideRoadEncodeData",
-  VisionStreamType.VISION_STREAM_DRIVER: "driverEncodeData",
+    VisionStreamType.VISION_STREAM_ROAD: "roadEncodeData",
+    VisionStreamType.VISION_STREAM_WIDE_ROAD: "wideRoadEncodeData",
+    VisionStreamType.VISION_STREAM_DRIVER: "driverEncodeData",
 }
-
-# Load YOLO model
-model = YOLO('yolov8n.pt')
-#yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-#transform = T.Compose([T.ToTensor()])
-
-def run_yolo(frame):
-  img = Image.fromarray(frame)
-  #results = yolo_model(img, size=640)  # size can be changed depending on your requirement
-  print("image")
-  results = model(img)
-  print(results)
-  return results
 
 def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
     sock_name = ENCODE_SOCKETS[vst]
@@ -44,7 +30,7 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
         print(f"start decoder for {sock_name}, {W}x{H}")
 
     if nvidia:
-        os.environ["NV_LOW_LATENCY"] = "3"
+        os.environ["NV_LOW_LATENCY"] = "3"    # both bLowLatency and CUVID_PKT_ENDOFPICTURE
         sys.path += os.environ["LD_LIBRARY_PATH"].split(":")
         import PyNvCodec as nvc
 
@@ -52,7 +38,7 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
         cc1 = nvc.ColorspaceConversionContext(nvc.ColorSpace.BT_709, nvc.ColorRange.JPEG)
         conv_yuv = nvc.PySurfaceConverter(W, H, nvc.PixelFormat.NV12, nvc.PixelFormat.YUV420, 0)
         nvDwn_yuv = nvc.PySurfaceDownloader(W, H, nvc.PixelFormat.YUV420, 0)
-        img_yuv = np.ndarray((H*W//2*3), dtype=np.uint8)
+        img_yuv = np.ndarray((H * W // 2 * 3), dtype=np.uint8)
     else:
         codec = av.CodecContext.create("hevc", "r")
 
@@ -64,11 +50,13 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
     seen_iframe = False
 
     time_q = []
-    while 1:
+    model = YOLO('yolov8n.pt')  # Load YOLOv8n model
+
+    while True:
         msgs = messaging.drain_sock(sock, wait_for_one=True)
         for evt in msgs:
             evta = getattr(evt, evt.which())
-            if debug and evta.idx.encodeId != 0 and evta.idx.encodeId != (last_idx+1):
+            if debug and evta.idx.encodeId != 0 and evta.idx.encodeId != (last_idx + 1):
                 print("DROP PACKET!")
             last_idx = evta.idx.encodeId
             if not seen_iframe and not (evta.idx.flags & V4L2_BUF_FLAG_KEYFRAME):
@@ -76,10 +64,11 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
                     print("waiting for iframe")
                 continue
             time_q.append(time.monotonic())
-            network_latency = (int(time.time()*1e9) - evta.unixTimestampNanos)/1e6
-            frame_latency = ((evta.idx.timestampEof/1e9) - (evta.idx.timestampSof/1e9))*1000
-            process_latency = ((evt.logMonoTime/1e9) - (evta.idx.timestampEof/1e9))*1000
+            network_latency = (int(time.time() * 1e9) - evta.unixTimestampNanos) / 1e6
+            frame_latency = ((evta.idx.timestampEof / 1e9) - (evta.idx.timestampSof / 1e9)) * 1000
+            process_latency = ((evt.logMonoTime / 1e9) - (evta.idx.timestampEof / 1e9)) * 1000
 
+            # put in header (first)
             if not seen_iframe:
                 if nvidia:
                     nvDec.DecodeSurfaceFromPacket(np.frombuffer(evta.header, dtype=np.uint8))
@@ -103,27 +92,40 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
                     continue
                 assert len(frames) == 1
                 img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p')).flatten()
-                uv_offset = H*W
+                uv_offset = H * W
                 y = img_yuv[:uv_offset]
                 uv = img_yuv[uv_offset:].reshape(2, -1).ravel('F')
                 img_yuv = np.hstack((y, uv))
 
-            # Run YOLO on the decoded frame
-            frame_rgb = frames[0].to_image().convert('RGB')
-            frame_rgb = np.array(frame_rgb)  # PIL 이미지를 numpy 배열로 변환
-            if debug:
-                print("Running YOLO")
-            results = run_yolo(frame_rgb)
-
-            vipc_server.send(vst, img_yuv.data, cnt, int(time_q[0]*1e9), int(time.monotonic()*1e9))
+            vipc_server.send(vst, img_yuv.data, cnt, int(time_q[0] * 1e9), int(time.monotonic() * 1e9))
             cnt += 1
 
-            pc_latency = (time.monotonic()-time_q[0])*1000
+            # Convert YUV to BGR for YOLO and OpenCV
+            yuv_image = img_yuv.reshape((H * 3 // 2, W))
+            bgr_image = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2BGR_I420)
+
+            # Run YOLOv8n inference
+            results = model(bgr_image)
+
+            # Draw bounding boxes
+            for result in results:
+                for bbox in result.boxes:
+                    x1, y1, x2, y2 = bbox.xyxy.cpu().numpy().astype(int)
+                    conf = bbox.conf.cpu().numpy()
+                    cv2.rectangle(bgr_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(bgr_image, f'{conf:.2f}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+            # Display the image
+            cv2.imshow(f'YOLOv8n - {sock_name}', bgr_image)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+            pc_latency = (time.monotonic() - time_q[0]) * 1000
             time_q = time_q[1:]
             if debug:
                 print("%2d %4d %.3f %.3f roll %6.2f ms latency %6.2f ms + %6.2f ms + %6.2f ms = %6.2f ms"
-                      % (len(msgs), evta.idx.encodeId, evt.logMonoTime/1e9, evta.idx.timestampEof/1e6, frame_latency,
-                         process_latency, network_latency, pc_latency, process_latency+network_latency+pc_latency ), len(evta.data), sock_name)
+                      % (len(msgs), evta.idx.encodeId, evt.logMonoTime / 1e9, evta.idx.timestampEof / 1e6, frame_latency,
+                         process_latency, network_latency, pc_latency, process_latency + network_latency + pc_latency), len(evta.data), sock_name)
 
 class CompressedVipc:
     def __init__(self, addr, vision_streams, nvidia=False, debug=False):
@@ -151,12 +153,10 @@ class CompressedVipc:
 
     def join(self):
         for p in self.procs:
-            print(f"Joining process {p.pid}")
             p.join()
 
     def kill(self):
         for p in self.procs:
-            print(f"Terminating process {p.pid}")
             p.terminate()
         self.join()
 
@@ -172,8 +172,4 @@ if __name__ == "__main__":
         VisionStreamType.VISION_STREAM_ROAD,
         VisionStreamType.VISION_STREAM_WIDE_ROAD,
         VisionStreamType.VISION_STREAM_DRIVER,
-    ]
-
-    vsts = [vision_streams[int(x)] for x in args.cams.split(",")]
-    cvipc = CompressedVipc(args.addr, vsts, args.nvidia, debug=(not args.silent))
-    cvipc.join()
+   
