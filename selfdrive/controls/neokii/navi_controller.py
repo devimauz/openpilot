@@ -22,12 +22,6 @@ import time
 CAMERA_SPEED_FACTOR = 1.05
 terminate_flag = threading.Event()
 
-_V_EGO = 0.0
-
-def set_v_ego(v_ego):
-  global _V_EGO
-  _V_EGO = v_ego
-
 class Port:
   BROADCAST_PORT = 2899
   RECEIVE_PORT = 3843
@@ -36,8 +30,7 @@ class Port:
 class NaviServer:
   def __init__(self):
 
-    #self.sm = messaging.SubMaster(['gpsLocationExternal', 'carState'])
-    self.sm = messaging.SubMaster(['gpsLocationExternal'])
+    self.sm = messaging.SubMaster(['gpsLocationExternal', 'carState'])
 
     self.json_road_limit = None
     self.json_traffic_signal = None
@@ -50,8 +43,6 @@ class NaviServer:
 
     self.remote_gps_addr = None
     self.last_time_location = 0
-
-    self.v_ego = 0
 
     broadcast = Thread(target=self.broadcast_thread, args=[])
     broadcast.start()
@@ -151,11 +142,10 @@ class NaviServer:
     rk = Ratekeeper(10, print_delay_threshold=None)
 
     while not terminate_flag.is_set():
-      #sm.update(0)
+      sm.update(0)
 
-      if True:#sm.updated['carState']:
-        v_ego = self.v_ego #sm['carState'].vEgo
-        print("update_thread:v_ego=", v_ego)
+      if sm.updated['carState']:
+        v_ego = sm['carState'].vEgo
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
           data_in_bytes = struct.pack('!f', v_ego)
           sock.sendto(data_in_bytes, ('127.0.0.1', 3847))
@@ -356,9 +346,8 @@ def publish_thread(server):
       #print(dat.naviData)
       pass
 
-    #if sm.updated['carState']:
-    #  v_ego_q.append(sm['carState'].vEgo)
-    v_ego_q.append(server.v_ego)
+    if sm.updated['carState']:
+      v_ego_q.append(sm['carState'].vEgo)
 
     v_ego = mean(v_ego_q) if len(v_ego_q) > 0 else 0.
     t = (time.monotonic() - server.last_updated)
@@ -375,19 +364,6 @@ def publish_thread(server):
     server.check()
     rk.keep_time()
 
-def nda_thread(server):
-  while not terminate_flag.is_set():
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
-      try:
-        sock.bind(('0.0.0.0', Port.RECEIVE_PORT))
-        sock.setblocking(True)
-        while not terminate_flag.is_set():
-          server.udp_recv(sock)
-          server.send_sdp(sock)
-
-      except Exception as e:
-        server.last_exception = e
-
 def main():
   server = NaviServer()
 
@@ -400,15 +376,16 @@ def main():
   navi_data = Thread(target=publish_thread, args=[server])
   navi_data.start()
 
-  nda_data = Thread(target=nda_thread, args=[server])
-  nda_data.start()
+  with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+    try:
+      sock.bind(('0.0.0.0', Port.RECEIVE_PORT))
+      sock.setblocking(True)
+      while not terminate_flag.is_set():
+        server.udp_recv(sock)
+        server.send_sdp(sock)
 
-  while True:
-    server.sm.update()
-    server.v_ego = _V_EGO
-    time.sleep(0.1)
-    pass
-
+    except Exception as e:
+      server.last_exception = e
 
 class SpeedLimiter:
   __instance = None
