@@ -46,7 +46,7 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
     seen_iframe = False
 
     time_q = []
-    model = YOLO('yolov8n.pt').to('cpu')
+    model = YOLO('yolov8n.pt').to('cpu')  # Force model to use CPU
 
     while True:
         msgs = messaging.drain_sock(sock, wait_for_one=True)
