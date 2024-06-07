@@ -10,6 +10,8 @@ import torchvision.transforms as T
 from PIL import Image
 from cereal.visionipc import VisionIpcServer, VisionStreamType
 import cereal.messaging as messaging
+from ultralytics import YOLO
+import cv2
 
 V4L2_BUF_FLAG_KEYFRAME = 8
 
@@ -24,12 +26,16 @@ ENCODE_SOCKETS = {
 }
 
 # Load YOLO model
-yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-transform = T.Compose([T.ToTensor()])
+model = YOLO('yolov8n.pt')
+#yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+#transform = T.Compose([T.ToTensor()])
 
 def run_yolo(frame):
-  img = Image.fromarray(frame)
-  results = yolo_model(img, size=640)  # size can be changed depending on your requirement
+  #img = Image.fromarray(frame)
+  #results = yolo_model(img, size=640)  # size can be changed depending on your requirement
+
+  results = model(frame)
+
   return results
 
 def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
@@ -103,10 +109,10 @@ def decoder(addr, vipc_server, vst, nvidia, W, H, debug=False):
         img_yuv = np.hstack((y, uv))
 
       # Run YOLO on the decoded frame
-      #frame_rgb = frames[0].to_image().convert('RGB')
-      #if debug:
-      #  print("Running YOLO")
-      #results = run_yolo(np.array(frame_rgb))
+      frame_rgb = frames[0].to_image().convert('RGB')
+      if debug:
+        print("Running YOLO")
+      results = run_yolo(np.array(frame_rgb))
 
       # Process YOLO results
       #if debug:
