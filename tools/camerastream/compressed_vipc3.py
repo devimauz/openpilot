@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 import av
 import os
-import sys
 import numpy as np
-import multiprocessing
 import time
 import cv2
 
@@ -35,7 +33,7 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
         msgs = messaging.drain_sock(sock, wait_for_one=True)
         for evt in msgs:
             evta = getattr(evt, evt.which())
-            if debug and evta.idx.encodeId != 0 and evta.idx.encodeId != (last_idx+1):
+            if debug and evta.idx.encodeId != 0 and evta.idx.encodeId != (last_idx + 1):
                 print("DROP PACKET!")
             last_idx = evta.idx.encodeId
             if not seen_iframe and not (evta.idx.flags & V4L2_BUF_FLAG_KEYFRAME):
@@ -43,7 +41,7 @@ def decoder(addr, vipc_server, vst, W, H, debug=False):
                     print("waiting for iframe")
                 continue
             time_q.append(time.monotonic())
-            network_latency = (int(time.time()*1e9) - evta.unixTimestampNanos) / 1e6
+            network_latency = (int(time.time() * 1e9) - evta.unixTimestampNanos) / 1e6
             frame_latency = ((evta.idx.timestampEof / 1e9) - (evta.idx.timestampSof / 1e9)) * 1000
             process_latency = ((evt.logMonoTime / 1e9) - (evta.idx.timestampEof / 1e9)) * 1000
 
@@ -99,22 +97,14 @@ class CompressedVipc:
             self.vipc_server.create_buffers(vst, 4, False, ed.width, ed.height)
         self.vipc_server.start_listener()
 
-        self.procs = []
-        for vst in vision_streams:
+        self.vision_streams = vision_streams
+        self.addr = addr
+        self.debug = debug
+
+    def run(self):
+        for vst in self.vision_streams:
             ed = sm[ENCODE_SOCKETS[vst]]
-            p = multiprocessing.Process(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, debug))
-            p.start()
-            self.procs.append(p)
-
-    def join(self):
-        for p in self.procs:
-            p.join()
-
-    def kill(self):
-        for p in self.procs:
-            p.terminate()
-        self.join()
-
+            decoder(self.addr, self.vipc_server, vst, ed.width, ed.height, self.debug)
 
 if __name__ == "__main__":
     addr = "192.168.0.28"
@@ -125,5 +115,5 @@ if __name__ == "__main__":
     ]
 
     cvipc = CompressedVipc(addr, vision_streams, debug=debug)
-    cvipc.join()
+    cvipc.run()
     cv2.destroyAllWindows()
