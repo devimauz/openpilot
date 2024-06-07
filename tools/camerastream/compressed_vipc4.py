@@ -179,7 +179,7 @@ class CompressedVipc:
       p.terminate()
     self.join()
 
-if __name__ == "__main__":
+def main():
   frame_processor(frame_queue, yolov8_model, debug=True)
   return
   addr = "192.168.0.28"
@@ -195,3 +195,6 @@ if __name__ == "__main__":
   frame_processor(frame_queue, yolov8_model, debug=True)
   #cvipc.join()
   cv2.destroyAllWindows()  # Ensure all OpenCV windows are destroyed at the end
+
+if __name__ == "__main__":
+  main()
