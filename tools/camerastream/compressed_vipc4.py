@@ -158,7 +158,7 @@ class CompressedVipc:
     for p in self.procs:
       p.join()
     self.frame_queue.put(None)  # Signal the display thread to exit
-    self.display_thread.join()
+    #self.display_thread.join()
 
   def kill(self):
     for p in self.procs:
@@ -166,18 +166,6 @@ class CompressedVipc:
     self.join()
 
 if __name__ == "__main__":
-  addr = "192.168.0.28"
-  debug = True
-
-  vision_streams = [
-    VisionStreamType.VISION_STREAM_ROAD,
-  ]
-
-  frame_queue = Queue()
-  yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
-
-  cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
-  #frame_processor(frame_queue, yolov8_model, debug=True)
   # 이미지의 크기 설정 (예: 512x512)
   height = 512
   width = 512
@@ -190,6 +178,19 @@ if __name__ == "__main__":
 
   # 아무 키나 누를 때까지 대기
   cv2.waitKey(0)
+
+  addr = "192.168.0.28"
+  debug = True
+
+  vision_streams = [
+    VisionStreamType.VISION_STREAM_ROAD,
+  ]
+
+  frame_queue = Queue()
+  yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
+
+  cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
+  frame_processor(frame_queue, yolov8_model, debug=True)
 
   # 창 닫기
   cv2.destroyAllWindows()
