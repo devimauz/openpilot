@@ -22,21 +22,6 @@ import time
 CAMERA_SPEED_FACTOR = 1.05
 terminate_flag = threading.Event()
 
-_V_EGO = 0.0
-_V_EGO_LOCK = threading.Lock()
-
-def set_v_ego(v_ego):
-  global _V_EGO
-  with _V_EGO_LOCK:
-    _V_EGO = v_ego
-    print("set_v_ego=", v_ego, _V_EGO, id(navi_controller))
-
-def get_v_ego():
-  global _V_EGO
-  with _V_EGO_LOCK:
-    print("get_v_ego=", _V_EGO, id(navi_controller))
-    return _V_EGO
-
 class Port:
   BROADCAST_PORT = 2899
   RECEIVE_PORT = 3843
@@ -59,6 +44,8 @@ class NaviServer:
 
     self.remote_gps_addr = None
     self.last_time_location = 0
+
+    self.v_ego = 0
 
     broadcast = Thread(target=self.broadcast_thread, args=[])
     broadcast.start()
@@ -161,8 +148,8 @@ class NaviServer:
       #sm.update(0)
 
       if True:#sm.updated['carState']:
-        v_ego = get_v_ego() #sm['carState'].vEgo
-        print(_V_EGO, v_ego)
+        v_ego = self.v_ego #sm['carState'].vEgo
+        print("update_thread:v_ego=", v_ego)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
           data_in_bytes = struct.pack('!f', v_ego)
           sock.sendto(data_in_bytes, ('127.0.0.1', 3847))
@@ -365,7 +352,7 @@ def publish_thread(server):
 
     #if sm.updated['carState']:
     #  v_ego_q.append(sm['carState'].vEgo)
-    v_ego_q.append(_V_EGO)
+    v_ego_q.append(server.v_ego)
 
     v_ego = mean(v_ego_q) if len(v_ego_q) > 0 else 0.
     t = (time.monotonic() - server.last_updated)
@@ -412,6 +399,7 @@ def main():
 
   while True:
     server.sm.update()
+    server.v_ego += 0.1
     time.sleep(0.1)
     pass
 
