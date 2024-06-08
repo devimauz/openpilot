@@ -23,10 +23,11 @@ ENCODE_SOCKETS = {
 
 def load_yolov8_model():
     from ultralytics import YOLO  # Import YOLO from ultralytics
-    return YOLO("yolov8n.pt")  # Load the YOLOv8 model
+    #return YOLO("yolov8n.pt")  # Load the YOLOv8 model
+    return YOLO("best.pt")  # Load the YOLOv8 model
 
 def run_yolov8_on_frame(model, frame):
-    results = model(frame)  # Run YOLOv8 on the frame
+    results = model(frame, imgsz=640)  # Run YOLOv8 on the frame
     return results
 
 def resize_image(image, scale_percent):
