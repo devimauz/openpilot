@@ -122,6 +122,7 @@ class Track:
 
     self.cnt += 1
     self.aLeadK_prev = self.aLeadK
+    self.vLead_prev = self.vLead
 
   def get_key_for_cluster(self):
     # Weigh y higher since radar is inaccurate in this dimension
