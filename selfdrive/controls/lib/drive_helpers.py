@@ -692,7 +692,7 @@ class VCruiseHelper:
     if controls.enabled or CS.brakePressed or CS.gasPressed:
       self.cruiseActiveReady = 0
       if CS.gasPressed and self.accel_output < -0.5:
-        self.autoCruiseCancelTimer = 1.0 / DT_CTRL #잠시 오토크루멈춤
+        self.autoCruiseCancelTimer = 5.0 / DT_CTRL #잠시 오토크루멈춤
         self.cruiseActivate = -1
         self._add_log("Cruise off (GasPressed while braking)")
 
