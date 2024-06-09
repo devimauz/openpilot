@@ -290,6 +290,7 @@ std::unordered_map<std::string, uint32_t> keys = {
     { "CruiseMaxVals5", PERSISTENT },
     { "CruiseMaxVals6", PERSISTENT },
     { "CruiseMinVals", PERSISTENT },
+    { "MyHighModeFactor", PERSISTENT },
     { "LongitudinalTuningKpV", PERSISTENT },
     { "LongitudinalTuningKiV", PERSISTENT },
     { "LongitudinalTuningKf", PERSISTENT },

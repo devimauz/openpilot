@@ -124,6 +124,7 @@ def get_default_params():
     ("CruiseMaxVals5", "95"),
     ("CruiseMaxVals6", "80"),
     ("CruiseMinVals", "140"),
+    ("MyHighModeFactor", "100"),
     ("CruiseSpeedMin", "10"),
     ("LongitudinalTuningKpV", "100"),     
     ("LongitudinalTuningKiV", "0"),     
