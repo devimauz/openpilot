@@ -119,11 +119,11 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
         frame_queue.put((img_rgb, cnt))
         last_capture_time = current_time
 
-      img_yuv = img_yuv.flatten()
-      uv_offset = H*W
-      y = img_yuv[:uv_offset]
-      uv = img_yuv[uv_offset:].reshape(2, -1).ravel('F')
-      img_yuv = np.hstack((y, uv))
+      #img_yuv = img_yuv.flatten()
+      #uv_offset = H*W
+      #y = img_yuv[:uv_offset]
+      #uv = img_yuv[uv_offset:].reshape(2, -1).ravel('F')
+      #img_yuv = np.hstack((y, uv))
 
       #vipc_server.send(vst, img_yuv.data, cnt, int(time_q[0]*1e9), int(time.monotonic()*1e9))
       cnt += 1
