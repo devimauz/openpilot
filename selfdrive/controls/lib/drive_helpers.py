@@ -481,6 +481,7 @@ class VCruiseHelper:
     elif self.xState == 3 and self.autoCancelFromGasMode == 2:
       self._add_log_auto_cruise("Cruise Deactivate from gas pressed: traffic stopping");
       self.cruiseActivate = -1
+      self.autoCruiseCancelTimer = 3.0 / DT_CTRL
     elif self.v_ego_kph_set > self.autoResumeFromGasSpeed > 0:
       if self.cruiseActivate <= 0:
         if self.gas_pressed_value > 0.6 or self.gas_pressed_count_prev > 3.0 / DT_CTRL:
