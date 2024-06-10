@@ -31,6 +31,11 @@ def resize_image(image, scale_percent):
     return cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
 def frame_processor(frame_queue, yolov8_model, debug=False):
+    # Ensure OpenCV is properly initialized
+    blank_image = np.zeros((100, 100, 3), np.uint8)
+    cv2.imshow("Initialization", blank_image)
+    cv2.waitKey(1)
+    cv2.destroyAllWindows()
     while True:
         frame = frame_queue.get()
         if frame is None:
@@ -55,12 +60,6 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
     cv2.destroyAllWindows()
 
 def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
-    # Ensure OpenCV is properly initialized
-    blank_image = np.zeros((100, 100, 3), np.uint8)
-    cv2.imshow("Initialization", blank_image)
-    cv2.waitKey(1)
-    cv2.destroyAllWindows()
-
     import av  # Import av after OpenCV initialization
 
     sock_name = ENCODE_SOCKETS[vst]
