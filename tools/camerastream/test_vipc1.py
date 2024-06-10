@@ -101,6 +101,7 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
                 frame_queue.put((img_rgb, cnt))
 
             cnt += 1
+            print("%2d" % (len(msgs)))
 
 class CompressedVipc:
     def __init__(self, addr, vision_streams, debug=False):
