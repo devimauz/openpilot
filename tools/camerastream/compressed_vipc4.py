@@ -54,18 +54,19 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
 
         # Run YOLOv8 on the frame and get results
         #print("run yolo")
-        results = run_yolov8_on_frame(yolov8_model, img_rgb)
+        if False:
+          results = run_yolov8_on_frame(yolov8_model, img_rgb)
 
-        for result in results:
-            if result.boxes:  # Check if there are any detections
-                for box in result.boxes:
-                    xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
-                    conf = box.conf[0].cpu().numpy()  # Get the confidence score
-                    cls = box.cls[0].cpu().numpy()  # Get the class label
-                    cls_name = yolov8_model.names[int(cls)]  # Get the class name
-                    cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
-                    #cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-                    cv2.putText(img_rgb, f"{cls_name}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+          for result in results:
+              if result.boxes:  # Check if there are any detections
+                  for box in result.boxes:
+                      xyxy = box.xyxy[0].cpu().numpy()  # Get the bounding box coordinates
+                      conf = box.conf[0].cpu().numpy()  # Get the confidence score
+                      cls = box.cls[0].cpu().numpy()  # Get the class label
+                      cls_name = yolov8_model.names[int(cls)]  # Get the class name
+                      cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
+                      #cv2.putText(img_rgb, f"{cls}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                      cv2.putText(img_rgb, f"{cls_name}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
 
         #print(results)
