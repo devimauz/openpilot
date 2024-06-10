@@ -65,8 +65,6 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
     cv2.destroyAllWindows()
 
 def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
-    import av  # Import av after OpenCV initialization
-
     sock_name = ENCODE_SOCKETS[vst]
     if debug:
         print(f"Start decoder for {sock_name}, {W}x{H}")
@@ -77,13 +75,6 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
     cnt = 0
     last_idx = -1
     seen_iframe = False
-
-    # Using GStreamer pipeline for hardware-accelerated decoding
-    pipeline = (
-        f"appsrc ! queue ! h264parse ! v4l2h264dec capture-io-mode=4 ! "
-        f"videoconvert ! video/x-raw,format=BGR ! appsink"
-    )
-    cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
 
     while True:
         msgs = messaging.drain_sock(sock, wait_for_one=True)
@@ -97,18 +88,24 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
                     print("Waiting for iframe")
                 continue
 
-            if not seen_iframe:
-                codec.decode(av.packet.Packet(evta.header))
-                seen_iframe = True
-
-            frames = codec.decode(av.packet.Packet(evta.data))
-            if len(frames) == 0:
+            # Use GStreamer for hardware-accelerated decoding
+            frame_data = evta.data
+            np_frame = np.frombuffer(frame_data, np.uint8)
+            cap = cv2.VideoCapture('appsrc ! videoconvert ! video/x-raw,format=BGR ! appsink', cv2.CAP_GSTREAMER)
+            if not cap.isOpened():
+                print("Error: Unable to open video capture.")
                 continue
 
-            if frame_queue.qsize() < 10:  # Increase queue size to buffer more frames
-                img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
-                img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
-                frame_queue.put((img_rgb, cnt))
+            cap.write(np_frame)
+            ret, frame = cap.read()
+            cap.release()
+
+            if not ret:
+                print("Error: Unable to decode frame.")
+                continue
+
+            if frame_queue.qsize() < 10:
+                frame_queue.put((frame, cnt))
 
             cnt += 1
             print("Number of messages processed: %2d" % (len(msgs)))
