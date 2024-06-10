@@ -567,7 +567,7 @@ static void update_state(UIState *s) {
       if (lp.getUseLaneLines() && controls_state.getUseLaneLines()) s->use_lane_lines = true;
       else s->use_lane_lines = false;
   }
-  else s->use_lane_lines = false;
+  //else s->use_lane_lines = false;
 
 }
 
