@@ -36,15 +36,18 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
     cv2.imshow("Initialization", blank_image)
     cv2.waitKey(1)
     cv2.destroyAllWindows()
+    
     while True:
         frame = frame_queue.get()
         if frame is None:
             break
         img_rgb, cnt = frame
-        #img_rgb = resize_image(img_rgb, 20)
+
+        # Resize image for faster processing
+        img_rgb_resized = resize_image(img_rgb, 50)
 
         if debug:
-            results = run_yolov8_on_frame(yolov8_model, img_rgb)
+            results = run_yolov8_on_frame(yolov8_model, img_rgb_resized)
             for result in results:
                 if result.boxes:
                     for box in result.boxes:
@@ -52,12 +55,13 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
                         conf = box.conf[0].cpu().numpy()
                         cls = box.cls[0].cpu().numpy()
                         cls_name = yolov8_model.names[int(cls)]
-                        cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
-                        cv2.putText(img_rgb, f"{cls_name}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                        cv2.rectangle(img_rgb, (int(xyxy[0] * 2), int(xyxy[1] * 2)), (int(xyxy[2] * 2), int(xyxy[3] * 2)), (0, 255, 0), 2)
+                        cv2.putText(img_rgb, f"{cls_name}: {conf:.2f}", (int(xyxy[0] * 2), int(xyxy[1] * 2) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
         cv2.imshow("Captured Frame with YOLOv8", img_rgb)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+    
     cv2.destroyAllWindows()
 
 def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
@@ -96,13 +100,14 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
             if len(frames) == 0:
                 continue
 
-            if frame_queue.qsize() < 3:
+            if frame_queue.qsize() < 10:  # Increase queue size to buffer more frames
                 img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
                 img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
                 frame_queue.put((img_rgb, cnt))
 
             cnt += 1
-            print("%2d" % (len(msgs)))
+            if debug:
+                print("%2d" % (len(msgs)))
 
 class CompressedVipc:
     def __init__(self, addr, vision_streams, debug=False):
@@ -115,7 +120,7 @@ class CompressedVipc:
         os.environ.pop("ZMQ")
         messaging.context = messaging.Context()
 
-        self.frame_queue = Queue()
+        self.frame_queue = Queue(maxsize=10)  # Set maximum queue size to buffer more frames
         self.procs = []
         yolov8_model = load_yolov8_model()
         self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
