@@ -162,14 +162,14 @@ class CompressedVipc:
       p.start()
       self.procs.append(p)
 
-    #self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
-    #self.display_thread.start()
+    self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
+    self.display_thread.start()
 
   def join(self):
     for p in self.procs:
       p.join()
     self.frame_queue.put(None)  # Signal the display thread to exit
-    #self.display_thread.join()
+    self.display_thread.join()
 
   def kill(self):
     for p in self.procs:
@@ -205,7 +205,7 @@ def main():
   ]
 
   cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
-  frame_processor(frame_queue, yolov8_model, debug=True)
+  #frame_processor(frame_queue, yolov8_model, debug=True)
   cvipc.join()
   cv2.destroyAllWindows()  # Ensure all OpenCV windows are destroyed at the end
 
