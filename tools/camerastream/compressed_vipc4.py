@@ -78,13 +78,6 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
     cv2.destroyAllWindows()
 
 def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
-  height = 1208
-  width = 1928
-  random_image = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
-  print("img show........................#")
-  cv2.imshow('Random Image', random_image)
-  #cv2.waitKey(0)
-  cv2.destroyAllWindows()
   import av
 
   sock_name = ENCODE_SOCKETS[vst]
