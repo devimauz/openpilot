@@ -161,6 +161,7 @@ class CompressedVipc:
     yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
     self.display_thread.start()
+    time.sleep(1.0)
 
     self.vipc_server = VisionIpcServer("camerad")
     for vst in vision_streams:
