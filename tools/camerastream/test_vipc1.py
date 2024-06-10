@@ -41,7 +41,7 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
         if frame is None:
             break
         img_rgb, cnt = frame
-        img_rgb = resize_image(img_rgb, 50)
+        img_rgb = resize_image(img_rgb, 30)
 
         if debug:
             results = run_yolov8_on_frame(yolov8_model, img_rgb)
