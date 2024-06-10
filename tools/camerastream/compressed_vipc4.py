@@ -156,23 +156,23 @@ class CompressedVipc:
     os.environ.pop("ZMQ")
     messaging.context = messaging.Context()
 
+    self.frame_queue = Queue()
+    self.procs = []
+    yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
+    self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
+    self.display_thread.start()
+
     self.vipc_server = VisionIpcServer("camerad")
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
       self.vipc_server.create_buffers(vst, 4, False, ed.width, ed.height)
     self.vipc_server.start_listener()
 
-    self.frame_queue = Queue()
-    self.procs = []
-    yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
       p = threading.Thread(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, self.frame_queue, debug))
       p.start()
       self.procs.append(p)
-
-    self.display_thread = threading.Thread(target=frame_processor, args=(self.frame_queue, yolov8_model, debug))
-    self.display_thread.start()
 
   def join(self):
     for p in self.procs:
