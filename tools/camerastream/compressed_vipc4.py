@@ -41,9 +41,11 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
     height = 1208
     width = 1928
     random_image = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+    print("img show........................#")
     cv2.imshow('Random Image', random_image)
     #cv2.waitKey(0)
     cv2.destroyAllWindows()
+    print("destroy show........................#")
     while True:
         frame = frame_queue.get()
         if frame is None:
