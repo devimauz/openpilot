@@ -155,7 +155,7 @@ class CompressedVipc:
 
     self.frame_queue = frame_queue #Queue()
     self.procs = []
-    #yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
+    yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     for vst in vision_streams:
       ed = sm[ENCODE_SOCKETS[vst]]
       p = threading.Thread(target=decoder, args=(addr, self.vipc_server, vst, ed.width, ed.height, self.frame_queue, debug))
