@@ -38,15 +38,15 @@ def resize_image(image, scale_percent):
     return resized
 
 def frame_processor(frame_queue, yolov8_model, debug=False):
-    if False:
-      height = 1208
-      width = 1928
-      random_image = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
-      print("img show........................#")
-      cv2.imshow('Random Image', random_image)
-      #cv2.waitKey(0)
-      cv2.destroyAllWindows()
-      print("destroy show........................#")
+    height = 1208
+    width = 1928
+    random_image = np.random.randint(0, 256, (height, width, 3), dtype=np.uint8)
+    print("img show........................#")
+    cv2.imshow('Random Image', random_image)
+    #cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    print("destroy show........................#")
+
     while True:
         frame = frame_queue.get()
         if frame is None:
@@ -71,7 +71,8 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
 
 
         #print(results)
-        cv2.imshow("Captured Frame with YOLOv8", resize_image(img_rgb, 50))
+        #cv2.imshow("Captured Frame with YOLOv8", resize_image(img_rgb, 50))
+        cv2.imshow("Captured Frame with YOLOv8", img_rgb)
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
             break
     cv2.destroyAllWindows()
@@ -128,14 +129,12 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
           print("DROP SURFACE")
         continue
       assert len(frames) == 1
-      img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
-      img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
-      #cv2.imshow("Captured Frame with YOLOv8", resize_image(img_rgb, 50))
-      cv2.imshow("Captured Frame with YOLOv8", img_rgb)
 
       # Capture and display the frame every second
       current_time = time.time()
-      if False: #current_time - last_capture_time >= 1.0 and frame_queue.qsize() < 3:
+      if current_time - last_capture_time >= 1.0 and frame_queue.qsize() < 3:
+        img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
+        img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
         frame_queue.put((img_rgb, cnt))
         last_capture_time = current_time
 
