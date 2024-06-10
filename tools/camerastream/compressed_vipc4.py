@@ -130,7 +130,8 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
       assert len(frames) == 1
       img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
       img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
-      cv2.imshow("Captured Frame with YOLOv8", resize_image(img_rgb, 50))
+      #cv2.imshow("Captured Frame with YOLOv8", resize_image(img_rgb, 50))
+      cv2.imshow("Captured Frame with YOLOv8", img_rgb)
 
       # Capture and display the frame every second
       current_time = time.time()
