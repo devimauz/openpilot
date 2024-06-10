@@ -54,9 +54,9 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
                         cv2.rectangle(img_rgb, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 255, 0), 2)
                         cv2.putText(img_rgb, f"{cls_name}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-        cv2.imshow("Captured Frame with YOLOv8", img_rgb)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        #cv2.imshow("Captured Frame with YOLOv8", img_rgb)
+        #if cv2.waitKey(1) & 0xFF == ord('q'):
+        #    break
     cv2.destroyAllWindows()
 
 def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
