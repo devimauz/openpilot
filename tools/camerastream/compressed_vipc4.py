@@ -115,7 +115,7 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
 
       # Capture and display the frame every second
       current_time = time.time()
-      if current_time - last_capture_time >= 0.1 and frame_queue.qsize() < 3:
+      if False: #current_time - last_capture_time >= 0.1 and frame_queue.qsize() < 3:
         img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
         img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
         frame_queue.put((img_rgb, cnt))
