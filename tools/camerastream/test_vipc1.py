@@ -65,9 +65,13 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
     cv2.destroyAllWindows()
 
 def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
+    import av  # Import av after OpenCV initialization
+
     sock_name = ENCODE_SOCKETS[vst]
     if debug:
         print(f"Start decoder for {sock_name}, {W}x{H}")
+
+    codec = av.CodecContext.create("hevc", "r")
 
     os.environ["ZMQ"] = "1"
     messaging.context = messaging.Context()
@@ -88,27 +92,21 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
                     print("Waiting for iframe")
                 continue
 
-            # Use GStreamer for hardware-accelerated decoding
-            frame_data = evta.data
-            np_frame = np.frombuffer(frame_data, np.uint8)
-            cap = cv2.VideoCapture('appsrc ! videoconvert ! video/x-raw,format=BGR ! appsink', cv2.CAP_GSTREAMER)
-            if not cap.isOpened():
-                print("Error: Unable to open video capture.")
+            if not seen_iframe:
+                codec.decode(av.packet.Packet(evta.header))
+                seen_iframe = True
+
+            frames = codec.decode(av.packet.Packet(evta.data))
+            if len(frames) == 0:
                 continue
 
-            cap.write(np_frame)
-            ret, frame = cap.read()
-            cap.release()
-
-            if not ret:
-                print("Error: Unable to decode frame.")
-                continue
-
-            if frame_queue.qsize() < 10:
-                frame_queue.put((frame, cnt))
+            if frame_queue.qsize() < 10:  # Increase queue size to buffer more frames
+                img_yuv = frames[0].to_ndarray(format=av.video.format.VideoFormat('yuv420p'))
+                img_rgb = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR_I420)
+                frame_queue.put((img_rgb, cnt))
 
             cnt += 1
-            print("Number of messages processed: %2d" % (len(msgs)))
+            print("%2d" % (len(msgs)))
 
 class CompressedVipc:
     def __init__(self, addr, vision_streams, debug=False):
