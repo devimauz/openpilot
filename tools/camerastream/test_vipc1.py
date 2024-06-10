@@ -71,14 +71,19 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
     if debug:
         print(f"Start decoder for {sock_name}, {W}x{H}")
 
-    codec = av.CodecContext.create("hevc", "r")
-
     os.environ["ZMQ"] = "1"
     messaging.context = messaging.Context()
     sock = messaging.sub_sock(sock_name, None, addr=addr, conflate=False)
     cnt = 0
     last_idx = -1
     seen_iframe = False
+
+    # Using GStreamer pipeline for hardware-accelerated decoding
+    pipeline = (
+        f"appsrc ! queue ! h264parse ! v4l2h264dec capture-io-mode=4 ! "
+        f"videoconvert ! video/x-raw,format=BGR ! appsink"
+    )
+    cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
 
     while True:
         msgs = messaging.drain_sock(sock, wait_for_one=True)
@@ -106,7 +111,7 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
                 frame_queue.put((img_rgb, cnt))
 
             cnt += 1
-            print("%2d" % (len(msgs)))
+            print("Number of messages processed: %2d" % (len(msgs)))
 
 class CompressedVipc:
     def __init__(self, addr, vision_streams, debug=False):
