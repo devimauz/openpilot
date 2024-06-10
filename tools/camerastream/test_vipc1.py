@@ -147,7 +147,7 @@ class CompressedVipc:
 
 def main():
     addr = "192.168.0.28"
-    debug = True
+    debug = False
 
     vision_streams = [
         VisionStreamType.VISION_STREAM_ROAD,
