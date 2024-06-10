@@ -53,7 +53,7 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
         img_rgb, cnt = frame
 
         # Run YOLOv8 on the frame and get results
-        print("run yolo")
+        #print("run yolo")
         results = run_yolov8_on_frame(yolov8_model, img_rgb)
 
         for result in results:
@@ -68,7 +68,7 @@ def frame_processor(frame_queue, yolov8_model, debug=False):
                     cv2.putText(img_rgb, f"{cls_name}: {conf:.2f}", (int(xyxy[0]), int(xyxy[1]) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
 
-        print(results)
+        #print(results)
         cv2.imshow("Captured Frame with YOLOv8", resize_image(img_rgb, 50))
         if cv2.waitKey(1) & 0xFF == ord('q'):  # Display the frame for at least 1 ms and allow exit on 'q' key
             break
