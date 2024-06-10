@@ -137,7 +137,7 @@ def decoder(addr, vipc_server, vst, W, H, frame_queue, debug=False):
                  process_latency, network_latency, pc_latency, process_latency+network_latency+pc_latency ), len(evta.data), sock_name)
 
 class CompressedVipc:
-  def __init__(self, addr, vision_streams, frame_queue, debug=False):
+  def __init__(self, addr, vision_streams, debug=False):
     print("getting frame sizes")
     os.environ["ZMQ"] = "1"
     messaging.context = messaging.Context()
@@ -153,7 +153,7 @@ class CompressedVipc:
       self.vipc_server.create_buffers(vst, 4, False, ed.width, ed.height)
     self.vipc_server.start_listener()
 
-    self.frame_queue = frame_queue #Queue()
+    self.frame_queue = Queue()
     self.procs = []
     yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
     for vst in vision_streams:
@@ -194,8 +194,8 @@ def main():
   # 창 닫기
   cv2.destroyAllWindows()
 
-  frame_queue = Queue()
-  yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
+  #frame_queue = Queue()
+  #yolov8_model = load_yolov8_model()  # Load YOLOv8 model once and pass it to decoder
   addr = "192.168.0.28"
   debug = True
 
@@ -204,7 +204,7 @@ def main():
     #VisionStreamType.VISION_STREAM_WIDE_ROAD,
   ]
 
-  cvipc = CompressedVipc(addr, vision_streams, frame_queue, debug=debug)
+  cvipc = CompressedVipc(addr, vision_streams, debug=debug)
   #frame_processor(frame_queue, yolov8_model, debug=True)
   cvipc.join()
   cv2.destroyAllWindows()  # Ensure all OpenCV windows are destroyed at the end
