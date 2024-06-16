@@ -147,13 +147,13 @@ class CarInterface(CarInterfaceBase):
     tune.deadzoneBP = [0., 9.]
     tune.deadzoneV = [.0, .0]
     if (candidate in TSS2_CAR or ret.enableGasInterceptor) and Params().get_bool("TSS2Tune"):
-      # TSS2 tune - Credit goes to the DragonPilot team!
+      # TSS2 le_potato long
       tune.deadzoneBP = [0., 16., 20., 30.]
       tune.deadzoneV = [0., 0., .06, .15]
       tune.kpBP = [0., 5., 20.]
       tune.kpV = [2.0, 2.0, 0.7]
 
-      # In MPH  = [  0,   27,   45,  60,  89] Frogtest
+      # In KMH  = [  0,   43,   72,  97,  144]
       tune.kiBP = [ 0.,  12.,  20., 27., 40.]
       tune.kiV =  [1., 1., .195, .10, .01]
       if candidate in TSS2_CAR:
