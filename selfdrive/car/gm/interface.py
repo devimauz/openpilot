@@ -106,11 +106,7 @@ class CarInterface(CarInterfaceBase):
     else:
       ret.transmissionType = TransmissionType.automatic
 
-    ret.longitudinalTuning.deadzoneBP = [0.]
-    ret.longitudinalTuning.deadzoneV = [0.15]
-
-    ret.longitudinalTuning.kpBP = [0.]
-    ret.longitudinalTuning.kiBP = [0.]
+    ret.longitudinalTuning.kiBP = [5., 35.]
 
     if candidate in CAMERA_ACC_CAR:
       ret.experimentalLongitudinalAvailable = candidate not in CC_ONLY_CAR
@@ -122,8 +118,7 @@ class CarInterface(CarInterfaceBase):
       ret.minSteerSpeed = 10 * CV.KPH_TO_MS
 
       # Tuning for experimental long
-      ret.longitudinalTuning.kpV = [2.0]
-      ret.longitudinalTuning.kiV = [0.72]
+      ret.longitudinalTuning.kiV = [2.0, 1.5]
       ret.stoppingDecelRate = 2.0  # reach brake quickly after enabling
       ret.vEgoStopping = 0.25
       ret.vEgoStarting = 0.25
@@ -152,8 +147,7 @@ class CarInterface(CarInterfaceBase):
       ret.minSteerSpeed = (6.7 if useEVTables else 7) * CV.MPH_TO_MS
 
       # Tuning
-      ret.longitudinalTuning.kpV = [1.75]
-      ret.longitudinalTuning.kiV = [0.36]
+      ret.longitudinalTuning.kiV = [2.4, 1.5]
       ret.stoppingDecelRate = 0.2
       if ret.enableGasInterceptor:
         # Need to set ASCM long limits when using pedal interceptor, instead of camera ACC long limits
@@ -164,7 +158,7 @@ class CarInterface(CarInterfaceBase):
 
     ret.steerLimitTimer = 0.4
     ret.radarTimeStep = 0.0667  # GM radar runs at 15Hz instead of standard 20Hz
-    ret.longitudinalActuatorDelayUpperBound = 0.5  # large delay to initially start braking
+    ret.longitudinalActuatorDelay = 0.5  # large delay to initially start braking
 
     if candidate in (CAR.CHEVROLET_VOLT, CAR.CHEVROLET_VOLT_CC):
       ret.minEnableSpeed = -1
@@ -172,9 +166,9 @@ class CarInterface(CarInterfaceBase):
 
       CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
 
-      ret.longitudinalTuning.kpBP = [0.]
-      ret.longitudinalTuning.kpV = [1.75]
-      ret.longitudinalTuning.kiBP = [0.]
+      #ret.longitudinalTuning.kpBP = [0.]
+      #ret.longitudinalTuning.kpV = [1.75]
+      #ret.longitudinalTuning.kiBP = [0.]
       ret.longitudinalTuning.kiV = [0.36]
       ret.stoppingDecelRate = 0.2 # brake_travel/s while trying to stop
       ret.stopAccel = -0.5
@@ -185,9 +179,9 @@ class CarInterface(CarInterfaceBase):
 
       # softer long tune for ev table
       if useEVTables: 
-        ret.longitudinalTuning.kpBP = [0.]
-        ret.longitudinalTuning.kpV = [1.75]
-        ret.longitudinalTuning.kiBP = [0.]
+        #ret.longitudinalTuning.kpBP = [0.]
+        #ret.longitudinalTuning.kpV = [1.75]
+        #ret.longitudinalTuning.kiBP = [0.]
         ret.longitudinalTuning.kiV = [0.36]
         ret.stoppingDecelRate = 0.1 # brake_travel/s while trying to stop
         ret.stopAccel = -0.5
@@ -269,9 +263,9 @@ class CarInterface(CarInterfaceBase):
         ret.flags |= GMFlags.PEDAL_LONG.value
         ret.safetyConfigs[0].safetyParam |= Panda.FLAG_GM_PEDAL_LONG
         # Note: Low speed, stop and go not tested. Should be fairly smooth on highway
-        ret.longitudinalTuning.kpBP = [5., 35.]
-        ret.longitudinalTuning.kpV = [0.35, 0.5]
-        ret.longitudinalTuning.kiBP = [0., 35.0]
+        #ret.longitudinalTuning.kpBP = [5., 35.]
+        #ret.longitudinalTuning.kpV = [0.35, 0.5]
+        #ret.longitudinalTuning.kiBP = [0., 35.0]
         ret.longitudinalTuning.kiV = [0.1, 0.1]
         ret.longitudinalTuning.kf = 0.15
         ret.stoppingDecelRate = 0.8
@@ -296,8 +290,8 @@ class CarInterface(CarInterfaceBase):
       ret.longitudinalActuatorDelayLowerBound = 1.  # TODO: measure this
       ret.longitudinalActuatorDelayUpperBound = 2.
 
-      ret.longitudinalTuning.kpBP = [10.7, 10.8, 28.]  # 10.7 m/s == 24 mph
-      ret.longitudinalTuning.kpV = [0., 20., 20.]  # set lower end to 0 since we can't drive below that speed
+      #ret.longitudinalTuning.kpBP = [10.7, 10.8, 28.]  # 10.7 m/s == 24 mph
+      #ret.longitudinalTuning.kpV = [0., 20., 20.]  # set lower end to 0 since we can't drive below that speed
       ret.longitudinalTuning.kiBP = [0.]
       ret.longitudinalTuning.kiV = [0.1]
 

@@ -705,7 +705,6 @@ struct ControlsState @0x97ff69c53601abf1 {
   personality @66 :LongitudinalPersonality;
 
   longControlState @30 :Car.CarControl.Actuators.LongControlState;
-  vPid @2 :Float32;
   vTargetLead @3 :Float32;
   vCruise @22 :Float32;  # actual set speed
   vCruiseCluster @63 :Float32;  # set speed to display in the UI
@@ -881,6 +880,7 @@ struct ControlsState @0x97ff69c53601abf1 {
   steeringAngleDesiredDegDEPRECATED @29 :Float32;
   canMonoTimesDEPRECATED @21 :List(UInt64);
   desiredCurvatureRateDEPRECATED @62 :Float32;
+  vPidDEPRECATED @2 :Float32;
 }
 
 # All SI units and in device frame
@@ -1082,22 +1082,27 @@ struct LongitudinalPlan @0xe00b5b3eba12876c {
   accels @32 :List(Float32);
   speeds @33 :List(Float32);
   jerks @34 :List(Float32);
+  aTarget @18 :Float32;
+  shouldStop @37: Bool;
+  allowThrottle @38: Bool;
+  allowBrake @39: Bool;
 
   solverExecutionTime @35 :Float32;
 
-  trafficState @37 :Int32;
-  xState @38 :Int32;
-  debugLongText @39 : Text;
-  debugLongText2 @40 : Text;
-  curveSpeed @41 : Float32;
-  activeAPM @42: Int32;
-  leftBlinkerExt @43: Int32;
-  rightBlinkerExt @44: Int32;
-  limitSpeed @45: Float32;
-  carrotEvent @46: Int32;
-  vCruiseTarget @47: Float32;
-  vCruiseTargetSource @48: Text;
-  tFollow @49: Float32;
+	jTarget @40 :Float32;
+  trafficState @41 :Int32;
+  xState @42 :Int32;
+  debugLongText @43 : Text;
+  debugLongText2 @44 : Text;
+  curveSpeed @45 : Float32;
+  activeAPM @46: Int32;
+  leftBlinkerExt @47: Int32;
+  rightBlinkerExt @48: Int32;
+  limitSpeed @49: Float32;
+  carrotEvent @50: Int32;
+  vCruiseTarget @51: Float32;
+  vCruiseTargetSource @52: Text;
+  tFollow @53: Float32;
 
   enum LongitudinalPlanSource {
     cruise @0;
@@ -1112,7 +1117,6 @@ struct LongitudinalPlan @0xe00b5b3eba12876c {
   aCruiseDEPRECATED @17 :Float32;
   vTargetDEPRECATED @3 :Float32;
   vTargetFutureDEPRECATED @14 :Float32;
-  aTargetDEPRECATED @18 :Float32;
   vStartDEPRECATED @26 :Float32;
   aStartDEPRECATED @27 :Float32;
   vMaxDEPRECATED @20 :Float32;

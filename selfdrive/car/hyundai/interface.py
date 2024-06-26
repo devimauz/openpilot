@@ -145,14 +145,10 @@ class CarInterface(CarInterfaceBase):
 
     # *** longitudinal control ***
     if candidate in CANFD_CAR:
-      ret.longitudinalTuning.kpV = [0.1]
-      ret.longitudinalTuning.kiV = [0.0]
       ret.experimentalLongitudinalAvailable = candidate not in (CANFD_UNSUPPORTED_LONGITUDINAL_CAR | CANFD_RADAR_SCC_CAR)
       ret.experimentalLongitudinalAvailable = True # carrot: 비전 롱컨이라도 되도록... 될까?
        
     else:
-      ret.longitudinalTuning.kpV = [0.5]
-      ret.longitudinalTuning.kiV = [0.0]
       ret.experimentalLongitudinalAvailable = candidate not in (UNSUPPORTED_LONGITUDINAL_CAR | CAMERA_SCC_CAR)
       
       ret.experimentalLongitudinalAvailable = True
@@ -169,8 +165,7 @@ class CarInterface(CarInterfaceBase):
     ret.vEgoStopping = 0.1 #0.25
     ret.startAccel = 2.0
     ret.stoppingDecelRate = 1.2 # brake_travel/s while trying to stop
-    ret.longitudinalActuatorDelayLowerBound = 0.5
-    ret.longitudinalActuatorDelayUpperBound = 0.5
+    ret.longitudinalActuatorDelay = 0.5
 
     if Params().get_int("EnableRadarTracks") > 0:
       ret.radarTimeStep = (1.0 / 20) # 20Hz  RadarTrack 20Hz

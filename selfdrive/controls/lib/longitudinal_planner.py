@@ -21,6 +21,8 @@ LON_MPC_STEP = 0.2  # first step is 0.2s
 A_CRUISE_MIN = -1.2
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
+CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
+
 A_CRUISE_MAX_BP_APILOT = [0., 40 * CV.KPH_TO_MS, 60 * CV.KPH_TO_MS, 80 * CV.KPH_TO_MS, 110 * CV.KPH_TO_MS, 140 * CV.KPH_TO_MS]
 
 
@@ -38,7 +40,6 @@ def limit_accel_in_turns(v_ego, angle_steers, a_target, CP):
   This function returns a limited long acceleration allowed, depending on the existing lateral acceleration
   this should avoid accelerating when losing the target in turns
   """
-
   # FIXME: This function to calculate lateral accel is incorrect and should use the VehicleModel
   # The lookup table for turns should also be updated if we do this
   a_total_max = interp(v_ego, _A_TOTAL_MAX_BP, _A_TOTAL_MAX_V)
@@ -46,6 +47,31 @@ def limit_accel_in_turns(v_ego, angle_steers, a_target, CP):
   a_x_allowed = math.sqrt(max(a_total_max ** 2 - a_y ** 2, 0.))
 
   return [a_target[0], min(a_target[1], a_x_allowed)]
+
+
+def get_accel_from_plan(CP, speeds, accels, jerks=None):
+    if len(speeds) == CONTROL_N:
+      v_target_now = interp(DT_MDL, CONTROL_N_T_IDX, speeds)
+      a_target_now = interp(DT_MDL, CONTROL_N_T_IDX, accels)
+      if jerks is not None:
+      	j_target_now = interp(DT_MDL, CONTROL_N_T_IDX, jerks)
+      else:
+        j_target_now = 0.0
+
+      v_target = interp(CP.longitudinalActuatorDelay + DT_MDL, CONTROL_N_T_IDX, speeds)
+      a_target = 2 * (v_target - v_target_now) / CP.longitudinalActuatorDelay - a_target_now
+      #j_target = 2 * (a_target - a_target_now) / CP.longitudinalActuatorDelay - j_target_now
+      j_target = j_target_now
+
+      v_target_1sec = interp(CP.longitudinalActuatorDelay + DT_MDL + 1.0, CONTROL_N_T_IDX, speeds)
+    else:
+      v_target = 0.0
+      v_target_now = 0.0
+      v_target_1sec = 0.0
+      a_target = 0.0
+    should_stop = (v_target < CP.vEgoStopping and
+                    v_target_1sec < CP.vEgoStopping)
+    return a_target, should_stop, j_target
 
 
 class LongitudinalPlanner:
@@ -99,9 +125,9 @@ class LongitudinalPlanner:
     
   @staticmethod
   def parse_model(model_msg, model_error):
-    if (len(model_msg.position.x) == 33 and
-       len(model_msg.velocity.x) == 33 and
-       len(model_msg.acceleration.x) == 33):
+    if (len(model_msg.position.x) == ModelConstants.IDX_N and
+       len(model_msg.velocity.x) == ModelConstants.IDX_N and
+       len(model_msg.acceleration.x) == ModelConstants.IDX_N):
       x = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.position.x) - model_error * T_IDXS_MPC
       v = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.velocity.x) - model_error
       a = np.interp(T_IDXS_MPC, ModelConstants.T_IDXS, model_msg.acceleration.x)
@@ -207,6 +233,10 @@ class LongitudinalPlanner:
     longitudinalPlan = plan_send.longitudinalPlan
     longitudinalPlan.modelMonoTime = sm.logMonoTime['modelV2']
     longitudinalPlan.processingDelay = (plan_send.logMonoTime / 1e9) - sm.logMonoTime['modelV2']
+    longitudinalPlan.solverExecutionTime = self.mpc.solve_time
+
+    longitudinalPlan.allowBrake = True
+    longitudinalPlan.allowThrottle = True
 
     longitudinalPlan.speeds = self.v_desired_trajectory.tolist()
     longitudinalPlan.accels = self.a_desired_trajectory.tolist()
@@ -216,7 +246,24 @@ class LongitudinalPlanner:
     longitudinalPlan.longitudinalPlanSource = self.mpc.source
     longitudinalPlan.fcw = self.fcw
 
-    longitudinalPlan.solverExecutionTime = self.mpc.solve_time
+    a_target_mpc, should_stop_mpc, j_target_mpc = get_accel_from_plan(self.CP, longitudinalPlan.speeds, longitudinalPlan.accels, longitudinalPlan.jerks)
+
+    if sm['controlsState'].experimentalMode:
+      model_speeds = np.interp(CONTROL_N_T_IDX, ModelConstants.T_IDXS, sm['modelV2'].velocity.x)
+      model_accels = np.interp(CONTROL_N_T_IDX, ModelConstants.T_IDXS, sm['modelV2'].acceleration.x)
+      a_target_model, should_stop_model, j_target_model = get_accel_from_plan(self.CP, model_speeds, model_accels)
+      a_target = min(a_target_mpc, a_target_model)      
+      should_stop = should_stop_mpc or should_stop_model
+    else:
+      a_target = a_target_mpc
+      should_stop = should_stop_mpc
+    j_target = j_target_mpc
+
+    longitudinalPlan.aTarget = float(a_target)
+    longitudinalPlan.shouldStop = bool(should_stop)
+    longitudinalPlan.allowBrake = True
+    longitudinalPlan.allowThrottle = True
+    longitudinalPlan.jTarget = float(j_target)
 
     longitudinalPlan.debugLongText = self.mpc.debugLongText
     #longitudinalPlan.debugLongText2 = "VC:{:.1f}".format(self.v_cruise_last*3.6)

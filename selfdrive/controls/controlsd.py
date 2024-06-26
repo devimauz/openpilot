@@ -726,19 +726,17 @@ class Controls:
     if not CC.latActive:
       self.LaC.reset()
     if not CC.longActive:
-      self.LoC.reset(v_pid=CS.vEgo)
+      self.LoC.reset()
 
     curve_speed = abs(self.sm['longitudinalPlan'].curveSpeed)
     self.lanefull_mode_enabled = self.params.get_int("UseLaneLineSpeedApply") > 0 and curve_speed > self.params.get_int("UseLaneLineCurveSpeed")
     if not self.joystick_mode:
       # accel PID loop
       pid_accel_limits = self.CI.get_pid_accel_limits(self.CP, CS.vEgo, self.v_cruise_helper.v_cruise_kph * CV.KPH_TO_MS)
-      t_since_plan = (self.sm.frame - self.sm.recv_frame['longitudinalPlan']) * DT_CTRL
-      actuators.accel, actuators.jerk = self.LoC.update(CC.longActive, CS, long_plan, pid_accel_limits, t_since_plan, self.v_cruise_helper.softHoldActive)
+      actuators.accel = self.LoC.update(CC.longActive, CS, long_plan.aTarget, long_plan.shouldStop, pid_accel_limits, self.v_cruise_helper.softHoldActive)
+      actuators.jerk = -0.5 if long_plan.shouldStop else long_plan.jTarget
       self.v_cruise_helper.accel_output = actuators.accel # carrot: for gas pedal
 
-      if len(long_plan.speeds):
-        actuators.speed = long_plan.speeds[-1]
 
       # Steering PID loop and lateral MPC
       if self.lanefull_mode_enabled:
@@ -971,7 +969,6 @@ class Controls:
     controlsState.state = self.state
     controlsState.engageable = not self.events.contains(ET.NO_ENTRY)
     controlsState.longControlState = self.LoC.long_control_state
-    controlsState.vPid = float(self.LoC.v_pid)
     controlsState.vCruise = float(self.v_cruise_helper.v_cruise_kph) ## 제어속도
     controlsState.vCruiseCluster = float(self.v_cruise_helper.v_cruise_kph_set) #세팅속도, #float(self.v_cruise_helper.v_cruise_cluster_kph)
     controlsState.upAccelCmd = float(self.LoC.pid.p)
