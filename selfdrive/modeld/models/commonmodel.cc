@@ -1,16 +1,13 @@
 #include "selfdrive/modeld/models/commonmodel.h"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstring>
 
 #include "common/clutil.h"
-#include "common/mat.h"
-#include "common/timing.h"
 
 ModelFrame::ModelFrame(cl_device_id device_id, cl_context context) {
-  input_frames = std::make_unique<float[]>(buf_size);
+  frame = std::make_unique<float[]>(MODEL_FRAME_SIZE);
 
   q = CL_CHECK_ERR(clCreateCommandQueue(context, device_id, 0, &err));
   y_cl = CL_CHECK_ERR(clCreateBuffer(context, CL_MEM_READ_WRITE, MODEL_WIDTH * MODEL_HEIGHT, NULL, &err));
@@ -26,20 +23,10 @@ float* ModelFrame::prepare(cl_mem yuv_cl, int frame_width, int frame_height, int
   transform_queue(&this->transform, q,
                   yuv_cl, frame_width, frame_height, frame_stride, frame_uv_offset,
                   y_cl, u_cl, v_cl, MODEL_WIDTH, MODEL_HEIGHT, projection);
-
-  if (output == NULL) {
-    loadyuv_queue(&loadyuv, q, y_cl, u_cl, v_cl, net_input_cl);
-
-    std::memmove(&input_frames[0], &input_frames[MODEL_FRAME_SIZE], sizeof(float) * MODEL_FRAME_SIZE);
-    CL_CHECK(clEnqueueReadBuffer(q, net_input_cl, CL_TRUE, 0, MODEL_FRAME_SIZE * sizeof(float), &input_frames[MODEL_FRAME_SIZE], 0, nullptr, nullptr));
-    clFinish(q);
-    return &input_frames[0];
-  } else {
-    loadyuv_queue(&loadyuv, q, y_cl, u_cl, v_cl, *output, true);
-    // NOTE: Since thneed is using a different command queue, this clFinish is needed to ensure the image is ready.
-    clFinish(q);
-    return NULL;
-  }
+  loadyuv_queue(&loadyuv, q, y_cl, u_cl, v_cl, net_input_cl);
+  CL_CHECK(clEnqueueReadBuffer(q, net_input_cl, CL_TRUE, 0, MODEL_FRAME_SIZE * sizeof(float), &frame[0], 0, nullptr, nullptr));
+  clFinish(q);
+  return &frame[0];
 }
 
 ModelFrame::~ModelFrame() {
@@ -50,21 +37,6 @@ ModelFrame::~ModelFrame() {
   CL_CHECK(clReleaseMemObject(u_cl));
   CL_CHECK(clReleaseMemObject(y_cl));
   CL_CHECK(clReleaseCommandQueue(q));
-}
-
-void softmax(const float* input, float* output, size_t len) {
-  const float max_val = *std::max_element(input, input + len);
-  float denominator = 0;
-  for (int i = 0; i < len; i++) {
-    float const v_exp = expf(input[i] - max_val);
-    denominator += v_exp;
-    output[i] = v_exp;
-  }
-
-  const float inv_denominator = 1. / denominator;
-  for (int i = 0; i < len; i++) {
-    output[i] *= inv_denominator;
-  }
 }
 
 float sigmoid(float input) {
