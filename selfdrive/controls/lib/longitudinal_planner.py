@@ -69,6 +69,7 @@ def get_accel_from_plan(CP, speeds, accels, jerks=None):
       v_target_now = 0.0
       v_target_1sec = 0.0
       a_target = 0.0
+      j_target = 0.0
     should_stop = (v_target < CP.vEgoStopping and
                     v_target_1sec < CP.vEgoStopping)
     return a_target, should_stop, j_target
