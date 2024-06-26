@@ -702,7 +702,7 @@ class Controls:
         self.steerDisabledTemporary = True
     else:
       self.steering_pressed_count = 0
-    if self.steerDisabledTemporary and self.sm['modelV2'].meta.desireState[0] > 0.9:
+    if not self.active or (self.steerDisabledTemporary and self.sm['modelV2'].meta.desireState[0] > 0.9):
       self.steerDisabledTemporary = False
     # Check which actuators can be enabled
     standstill = CS.vEgo <= max(self.CP.minSteerSpeed, MIN_LATERAL_CONTROL_SPEED) or CS.standstill
