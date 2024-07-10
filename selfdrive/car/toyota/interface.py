@@ -155,7 +155,7 @@ class CarInterface(CarInterfaceBase):
 
       # In MPH  = [  0,   27,   45,  60,  89] Frogtest
       tune.kiBP = [ 0.,  12.,  20., 27., 40.]
-      tune.kiV =  [.35, .215, .195, .10, .01]
+      tune.kiV =  [.15, .180, .195, .10, .01]
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.1         # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.1         # needs to be > or == vEgoStopping
