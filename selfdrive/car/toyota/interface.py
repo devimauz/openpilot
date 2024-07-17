@@ -151,11 +151,9 @@ class CarInterface(CarInterfaceBase):
       tune.deadzoneBP = [0., 16., 20., 30.]
       tune.deadzoneV = [0., .03, .06, .15]
       tune.kpBP = [0., 5., 20.]
-      tune.kpV = [1.3, 1.0, 0.7]
-
-      # In MPH  = [  0,   27,   45,  60,  89] Frogtest
+      tune.kpV = [0.5, 0.5, 0.7]
       tune.kiBP = [ 0.,  12.,  20., 27., 40.]
-      tune.kiV =  [.15, .180, .195, .10, .01]
+      tune.kiV =  [.15, .15, .10, .10, .10]
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.1         # car is near 0.1 to 0.2 when car starts requesting stopping accel
         ret.vEgoStarting = 0.1         # needs to be > or == vEgoStopping
