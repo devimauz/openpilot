@@ -145,11 +145,11 @@ class CarInterface(CarInterfaceBase):
 
     tune = ret.longitudinalTuning
     if (candidate in TSS2_CAR or ret.enableGasInterceptor) and Params().get_bool("TSS2Tune"):
-      tune.deadzoneBP = [0.]
-      tune.deadzoneV = [0.03]
+      tune.deadzoneBP = [0., 3., 22., 30., 35.]
+      tune.deadzoneV = [0., .10, .15, .20, .40]
       tune.kpBP = [0.]
       tune.kpV = [0.5]
-      tune.kiBP = [ 0.]
+      tune.kiBP = [0.]
       tune.kiV =  [0.15]
       if candidate in TSS2_CAR:
         ret.vEgoStopping = 0.1         # car is near 0.1 to 0.2 when car starts requesting stopping accel
