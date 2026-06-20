@@ -3,6 +3,7 @@ from opendbc.car.interfaces import CarInterfaceBase
 from opendbc.car.volkswagen.carcontroller import CarController
 from opendbc.car.volkswagen.carstate import CarState
 from opendbc.car.volkswagen.values import CAR, NetworkLocation, TransmissionType, VolkswagenFlags, VolkswagenSafetyFlags
+from openpilot.common.params import Params
 
 
 class CarInterface(CarInterfaceBase):
@@ -56,6 +57,14 @@ class CarInterface(CarInterfaceBase):
 
       if 0x126 in fingerprint[2]:  # HCA_01
         ret.flags |= VolkswagenFlags.STOCK_HCA_PRESENT.value
+
+      # External red-panda "Torque Interceptor": command a steering-wheel angle via
+      # HCA_01 instead of torque. Opt-in via the VwMqbTorqueInterceptor param. The
+      # angle rides in HCA_01 bits 40..52 (torque stays 0 so the comma panda forwards
+      # the frame); the interceptor decodes it and drives the EPS park-assist angle.
+      if Params().get_bool("VwMqbTorqueInterceptor"):
+        ret.flags |= VolkswagenFlags.TORQUE_INTERCEPTOR.value
+        ret.steerControlType = structs.CarParams.SteerControlType.angle
 
     # Global lateral tuning defaults, can be overridden per-vehicle
 

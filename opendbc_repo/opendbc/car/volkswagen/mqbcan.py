@@ -13,6 +13,26 @@ def create_steering_control(packer, bus, apply_torque, lkas_enabled):
   return packer.make_can_msg("HCA_01", bus, values)
 
 
+def create_steering_control_alc(packer, bus, apply_angle, lat_active):
+  # External red-panda "Torque Interceptor" angle command.
+  #   * HCA_01_Status_HCA = 7 (active) tells the interceptor to steer to the angle;
+  #     3 (ready) when not engaged. The interceptor cycles ready->active to (re)arm.
+  #   * The steering-wheel angle rides in HCA_01_ALC_Angle (bits 40..52, 0.1 deg/bit,
+  #     same units/convention as LWI_01) with the sign in HCA_01_LM_OffSign (bit 31,
+  #     1 = negative, matching LWI_VZ_Lenkradwinkel).
+  #   * Torque fields stay zero (and Sendestatus = 0) so the comma-side panda's
+  #     torque safety treats this as a benign 0 Nm frame and forwards it.
+  values = {
+    "HCA_01_Status_HCA": 7 if lat_active else 3,
+    "HCA_01_LM_Offset": 0,
+    "HCA_01_LM_OffSign": 1 if apply_angle < 0 else 0,
+    "HCA_01_Sendestatus": 0,
+    "HCA_01_ALC_Angle": min(abs(apply_angle), 819.1),
+  }
+  return packer.make_can_msg("HCA_01", bus, values)
+
+
+
 def create_eps_update(packer, bus, eps_stock_values, ea_simulated_torque):
   values = {s: eps_stock_values[s] for s in [
     "COUNTER",                     # Sync counter value to EPS output

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from enum import Enum, IntFlag, StrEnum
 
 from opendbc.car import Bus, CarSpecs, DbcDict, PlatformConfig, Platforms, structs, uds
+from opendbc.car import AngleSteeringLimits
 from opendbc.can import CANDefine
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.docs_definitions import CarFootnote, CarHarness, CarDocs, CarParts, Column, \
@@ -30,7 +31,6 @@ class CarControllerParams:
   STEER_MAX = 300                          # Max heading control assist torque 3.00 Nm
   STEER_DRIVER_MULTIPLIER = 3              # weight driver torque heavily
   STEER_DRIVER_FACTOR = 1                  # from dbc
-
   STEER_TIME_MAX = 360                     # Max time that EPS allows uninterrupted HCA steering control
   STEER_TIME_ALERT = STEER_TIME_MAX - 10   # If mitigation fails, time to soft disengage before EPS timer expires
   STEER_TIME_STUCK_TORQUE = 1.9            # EPS limits same torque to 6 seconds, reset timer 3x within that period
@@ -39,6 +39,17 @@ class CarControllerParams:
 
   ACCEL_MAX = 2.0                          # 2.0 m/s max acceleration
   ACCEL_MIN = -3.5                         # 3.5 m/s max deceleration
+
+  # Torque Interceptor (red panda ALC) angle-control limits. Used only when
+  # VolkswagenFlags.TORQUE_INTERCEPTOR is set. The interceptor firmware also
+  # applies its own speed-dependent rate/abs limiting; these keep openpilot's
+  # commanded steering-wheel angle sane before it reaches the interceptor.
+  ANGLE_LIMITS: AngleSteeringLimits = AngleSteeringLimits(
+    360,  # deg, max steering-wheel angle command
+    # rate limits in deg per send (50 Hz) interpolated over v_ego (m/s)
+    ([0., 5., 25.], [2.5, 1.5, 0.4]),
+    ([0., 5., 25.], [5.0, 2.0, 0.8]),
+  )
 
   def __init__(self, CP):
     can_define = CANDefine(DBC[CP.carFingerprint][Bus.pt])
@@ -143,6 +154,10 @@ class VolkswagenFlags(IntFlag):
 
   # Static flags
   PQ = 2
+
+  # External red-panda "Torque Interceptor" ALC: command a steering-wheel angle
+  # via HCA_01 instead of torque. MQB only.
+  TORQUE_INTERCEPTOR = 4
 
 
 @dataclass
