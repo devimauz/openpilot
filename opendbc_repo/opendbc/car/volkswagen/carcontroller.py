@@ -83,6 +83,14 @@ class CarController(CarControllerBase):
         carlog.error("VW ALC raw: LWI_01=%s LH_EPS_03=%s" % (
           raw_lwi.hex() if isinstance(raw_lwi, (bytes, bytearray)) else "n/a",
           raw_eps.hex() if isinstance(raw_eps, (bytes, bytearray)) else "n/a"))
+        # Freshness + ever-seen probe. lwiCtr/epsCtr should advance every sample on a
+        # live 100Hz bus; if frozen, the parser is rejecting injected frames (stale).
+        # keySlotSeen/plaSeen latch the highest values ever observed.
+        carlog.error("VW ALC live: lwiCtr=%s epsCtr=%s keySlotSeen=%s plaSeen=%s" % (
+          getattr(CS, "vw_iq_lvbs_lwi_counter", None),
+          getattr(CS, "vw_iq_lvbs_eps_counter", None),
+          getattr(CS, "vw_iq_lvbs_keyslot_seen", None),
+          getattr(CS, "vw_iq_lvbs_pla_seen", None)))
 
     elif self.frame % self.CCP.STEER_STEP == 0:
       # Logic to avoid HCA state 4 "refused":

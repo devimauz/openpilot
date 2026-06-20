@@ -631,6 +631,18 @@ def update_mqb_carstate_alc_state(CS, pt_cp) -> None:
   # passthrough frames (all-zero ALC fields).
   CS.vw_iq_lvbs_raw_lwi = _iqlvbs_get_message_data(pt_cp, "LWI_01")
   CS.vw_iq_lvbs_raw_eps = _iqlvbs_get_message_data(pt_cp, "LH_EPS_03")
+  # Freshness/aliveness probes. If the LWI_01/LH_EPS_03 counters never advance, the
+  # parser is rejecting the injected frames (checksum/counter) and holding a stale
+  # stock frame -> key slot/PLA stay 0. If they advance but key slot/PLA stay 0, the
+  # red panda is not injecting on this bus (asleep / wrong bus / relay closed). Track
+  # the highest key slot / PLA status ever observed so a single non-zero blip is seen.
+  lwi = CS.vw_iq_lvbs_raw_lwi
+  eps = CS.vw_iq_lvbs_raw_eps
+  CS.vw_iq_lvbs_lwi_counter = (lwi[1] & 0x0F) if len(lwi) >= 2 else -1
+  CS.vw_iq_lvbs_eps_counter = (eps[1] & 0x0F) if len(eps) >= 2 else -1
+  CS.vw_iq_lvbs_keyslot_seen = max(int(getattr(CS, "vw_iq_lvbs_keyslot_seen", 0)),
+                                   int(CS.vw_iq_lvbs_alc_key_slot))
+  CS.vw_iq_lvbs_pla_seen = max(int(getattr(CS, "vw_iq_lvbs_pla_seen", 0)), int(eps_pla_status_raw))
   CS.EPS_ALC_Status = 8 if eps_pla_status_raw == 11 else eps_pla_status_raw
   CS.vw_iq_lvbs_alc_available = mqb_exported_alc_available(CS.EPS_ALC_Status)
   CS.vw_iq_lvbs_alc_entering = mqb_exported_alc_entering(CS.EPS_ALC_Status)
