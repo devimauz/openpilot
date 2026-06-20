@@ -1,6 +1,7 @@
 import numpy as np
 from opendbc.can import CANPacker
 from opendbc.car import Bus, DT_CTRL, apply_driver_steer_torque_limits, apply_std_steer_angle_limits, structs
+from opendbc.car.carlog import carlog
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.volkswagen import mqbcan, pqcan
@@ -52,6 +53,16 @@ class CarController(CarControllerBase):
                                                    CC.latActive, self.CCP.ANGLE_LIMITS)
         self.apply_angle_last = apply_angle
         can_sends.append(mqbcan.create_steering_control_alc(self.packer_pt, CANBUS.pt, apply_angle, CC.latActive))
+
+        # Debug: log the angle-interceptor state ~1x/sec so we can see why steering
+        # stops. Visible in the card/controlsd process output (carlog -> stderr).
+        if self.frame % 50 == 0:
+          carlog.error(
+            "VW ALC TI: latActive=%s desAngle=%.2f applyAngle=%.2f measAngle=%.2f "
+            "vEgoRaw=%.2f steerPressed=%s hcaStatus=%d steerFault(t/p)=%s/%s" % (
+              CC.latActive, actuators.steeringAngleDeg, apply_angle, CS.out.steeringAngleDeg,
+              CS.out.vEgoRaw, CS.out.steeringPressed, 7 if CC.latActive else 3,
+              CS.out.steerFaultTemporary, CS.out.steerFaultPermanent))
       else:
         if CC.latActive:
           new_torque = int(round(actuators.torque * self.CCP.STEER_MAX))
