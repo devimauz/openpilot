@@ -26,6 +26,7 @@ class CarController(CarControllerBase):
     self.hca_frame_timer_running = 0
     self.hca_frame_same_torque = 0
     self.apply_angle_last = 0
+    self.alc_armed_frames = 0
 
   def update(self, CC, CS, now_nanos):
     actuators = CC.actuators
@@ -52,16 +53,35 @@ class CarController(CarControllerBase):
                                                    CS.out.vEgoRaw, CS.out.steeringAngleDeg,
                                                    CC.latActive, self.CCP.ANGLE_LIMITS)
         self.apply_angle_last = apply_angle
-        can_sends.append(mqbcan.create_steering_control_alc(self.packer_pt, CANBUS.pt, apply_angle, CC.latActive))
+
+        # Keep HCA_01_Status_HCA = 7 (active) continuously while lateral is engaged,
+        # including at standstill and through brief latActive dropouts. The interceptor
+        # firmware (alc.c) runs an ENTERING->ACTIVE park-assist handshake with the EPS
+        # and only steers once the EPS reports park-assist; a momentary status 3 (READY)
+        # tears that down and forces a full re-entry, which the EPS only re-accepts
+        # hands-off. apply_std_steer_angle_limits holds the measured angle whenever
+        # latActive is false, so requesting "active" at standstill keeps the EPS armed
+        # without moving the wheel. Drop the request immediately on a steering fault.
+        steer_fault = CS.out.steerFaultTemporary or CS.out.steerFaultPermanent
+        alc_request = CC.latActive or (CC.enabled and CS.out.latEnabled and not steer_fault)
+        if alc_request:
+          self.alc_armed_frames = self.CCP.STEER_STEP * 50  # hold ~1s after last request
+        elif self.alc_armed_frames > 0 and not steer_fault:
+          self.alc_armed_frames -= self.CCP.STEER_STEP
+        else:
+          self.alc_armed_frames = 0
+        alc_active = alc_request or self.alc_armed_frames > 0
+
+        can_sends.append(mqbcan.create_steering_control_alc(self.packer_pt, CANBUS.pt, apply_angle, alc_active))
 
         # Debug: log the angle-interceptor state ~1x/sec so we can see why steering
         # stops. Visible in the card/controlsd process output (carlog -> stderr).
         if self.frame % 50 == 0:
           carlog.error(
-            "VW ALC TI: latActive=%s desAngle=%.2f applyAngle=%.2f measAngle=%.2f "
-            "vEgoRaw=%.2f steerPressed=%s hcaStatus=%d steerFault(t/p)=%s/%s" % (
-              CC.latActive, actuators.steeringAngleDeg, apply_angle, CS.out.steeringAngleDeg,
-              CS.out.vEgoRaw, CS.out.steeringPressed, 7 if CC.latActive else 3,
+            "VW ALC TI: latActive=%s alcActive=%s latEnabled=%s desAngle=%.2f applyAngle=%.2f "
+            "measAngle=%.2f vEgoRaw=%.2f steerPressed=%s hcaStatus=%d steerFault(t/p)=%s/%s" % (
+              CC.latActive, alc_active, CS.out.latEnabled, actuators.steeringAngleDeg, apply_angle,
+              CS.out.steeringAngleDeg, CS.out.vEgoRaw, CS.out.steeringPressed, 7 if alc_active else 3,
               CS.out.steerFaultTemporary, CS.out.steerFaultPermanent))
       else:
         if CC.latActive:
