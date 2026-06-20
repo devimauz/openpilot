@@ -247,11 +247,18 @@ class CANParser:
         state = self.message_states.get(address)
         if state is None or len(dat) > 64:
           continue
+
+        # Capture the raw bytes of every received frame on our bus, regardless of
+        # DBC checksum/counter validation. Consumers that read repurposed bytes/bits
+        # (e.g. MitM-injected fields not described in the DBC) need the freshest raw
+        # frame even when the DBC-level counter/checksum check rejects it; gating this
+        # behind a successful parse would freeze .dat on the last validated frame.
+        raw = bytes(dat)
+        self.dat[address] = raw
+        self.dat[state.name] = raw
+
         if state.parse(t, dat):
           updated_addrs.add(address)
-
-          self.dat[address] = bytes(dat)
-          self.dat[state.name] = self.dat[address]
 
           vl_addr = self.vl[address]
           vl_all_addr = self.vl_all[address]
