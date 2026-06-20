@@ -382,6 +382,7 @@ BO_ 294 HCA_01: 8 Frontsensorik
  SG_ HCA_01_Vib_Amp : 36|4@1+ (0.2,0) [0|3] "Unit_NewtoMeter" Vector__XXX
  SG_ EA_Ruckfreigabe : 40|1@1+ (1,0) [0|1] "" Vector__XXX
  SG_ EA_ACC_Wunschgeschwindigkeit : 41|10@1+ (0.32,0) [0|327.04] "Unit_KiloMeterPerHour" Frontradar
+ SG_ HCA_01_ALC_Angle : 40|13@1+ (0.1,0) [0|819.1] "Unit_DegreOfArc" Vector__XXX
 
 BO_ 296 Getriebe_06: 3 Getriebe_DQ_Hybrid_MQB
  SG_ GE_WH_Sperre : 0|1@1+ (1,0) [0|1] "" Waehlhebel_MQB
