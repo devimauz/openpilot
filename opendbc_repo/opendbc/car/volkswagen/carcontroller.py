@@ -1,6 +1,7 @@
 import numpy as np
 from opendbc.can import CANPacker
 from opendbc.car import Bus, DT_CTRL, apply_driver_steer_torque_limits, structs
+from opendbc.car.carlog import carlog
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.vehicle_model import VehicleModel
@@ -54,6 +55,26 @@ class CarController(CarControllerBase):
       # torque blend, and the override/re-engage state machine. Called every frame; the
       # module gates its own CAN output to the HCA send rate internally.
       update_vw_alc(self, CC, CS, actuators, can_sends, 0)
+
+      # Diagnostics: surface why the encrypted angle path is/ isn't steering. The
+      # ALC only commands the EPS once the firmware has published a crypto key slot
+      # (LWI_01 byte 7) AND reports park-assist "available" (LH_EPS_03 PLA status),
+      # and only sends frames when AngleLateralControl is enabled. Throttled ~1/sec;
+      # visible in the card process output (carlog -> stderr).
+      if self.frame % 50 == 0:
+        carlog.error(
+          "VW ALC: angleParam=%s available=%s keySlot=%d EPS_ALC_Status=%s ALC_status=%s "
+          "latActive=%s engaged=%s entering=%s active=%s desAngle=%.2f applyAngle=%.2f "
+          "measAngle=%.2f vEgoRaw=%.2f steerPressed=%s steerFault(t/p)=%s/%s" % (
+            self._params.get_bool("AngleLateralControl"),
+            getattr(CS, "vw_iq_lvbs_alc_available", None),
+            int(getattr(CS, "vw_iq_lvbs_alc_key_slot", 0)),
+            getattr(CS, "EPS_ALC_Status", None), getattr(self, "ALC_status", None),
+            CC.latActive, getattr(self, "ALC_feedback_engaged", None),
+            getattr(self, "ALC_feedback_entering", None), getattr(self, "ALC_feedback_active", None),
+            actuators.steeringAngleDeg, getattr(self, "apply_angle_last", 0.0),
+            CS.out.steeringAngleDeg, CS.out.vEgoRaw, CS.out.steeringPressed,
+            CS.out.steerFaultTemporary, CS.out.steerFaultPermanent))
 
     elif self.frame % self.CCP.STEER_STEP == 0:
       # Logic to avoid HCA state 4 "refused":
