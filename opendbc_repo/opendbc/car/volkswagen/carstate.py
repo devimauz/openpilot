@@ -5,6 +5,7 @@ from opendbc.car.interfaces import CarStateBase
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.volkswagen.values import DBC, CANBUS, NetworkLocation, TransmissionType, GearShifter, \
                                                       CarControllerParams, VolkswagenFlags
+from opendbc.car.volkswagen.alc import update_mqb_carstate_alc_state, update_pq_carstate_alc_state
 
 
 class MqbExtraSignals:
@@ -153,6 +154,11 @@ class CarState(CarStateBase):
 
     ret.buttonEvents = self.create_button_events(pt_cp, self.CCP.BUTTONS)
 
+    # External red-panda interceptor ALC: decode the EPS park-assist feedback and the
+    # firmware-published crypto key slot (LWI_01 byte 7) so the angle path can engage.
+    if self.CP.flags & VolkswagenFlags.TORQUE_INTERCEPTOR:
+      update_mqb_carstate_alc_state(self, pt_cp)
+
     self.frame += 1
     return ret
 
@@ -251,6 +257,13 @@ class CarState(CarStateBase):
 
     # Additional safety checks performed in CarInterface.
     ret.espDisabled = bool(pt_cp.vl["Bremse_1"]["ESP_Passiv_getastet"])
+
+    # External red-panda interceptor ALC: decode the EPS feedback and the firmware-published
+    # crypto key slot (Lenkhilfe_2 bits 48..55) so the angle path can engage.
+    if self.CP.flags & VolkswagenFlags.TORQUE_INTERCEPTOR:
+      self.LH_3_Sign = pt_cp.vl["Lenkhilfe_3"]["LH3_BLWSign"]
+      self.cruise_main_switch = bool(pt_cp.vl["Motor_5"]["GRA_Hauptschalter"])
+      update_pq_carstate_alc_state(self, pt_cp)
 
     self.frame += 1
     return ret

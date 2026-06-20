@@ -159,6 +159,12 @@ class VolkswagenFlags(IntFlag):
   # via HCA_01 instead of torque. MQB only.
   TORQUE_INTERCEPTOR = 4
 
+  # Platform family flags (referenced by the ALC integration; not yet ported as
+  # full platforms here, but defined so feature gating in alc.py is valid).
+  MEB = 8
+  MQB_EVO = 16
+  MLB = 32
+
 
 @dataclass
 class VolkswagenMQBPlatformConfig(PlatformConfig):

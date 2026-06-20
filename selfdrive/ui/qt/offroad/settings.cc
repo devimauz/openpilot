@@ -845,6 +845,8 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   startToggles->addItem(new CValueControl("AutoGasSyncSpeed", tr("Auto update Cruise speed"), "", 0, 1, 1));
   startToggles->addItem(new CValueControl("DisableMinSteerSpeed", tr("Disable Min.SteerSpeed"), "", 0, 1, 1));
   startToggles->addItem(new CValueControl("VwMqbTorqueInterceptor", tr("VW MQB Torque Interceptor"), tr("Red panda ALC: command steering angle via HCA_01 (Reboot required)"), 0, 1, 1));
+  startToggles->addItem(new CValueControl("AngleLateralControl", tr("VW ALC Angle Steering"), tr("Engage the encrypted angle steering path through the torque interceptor (requires VW MQB Torque Interceptor)"), 0, 1, 1));
+  startToggles->addItem(new CValueControl("ALCTorqueBlend", tr("VW ALC Torque Blend"), tr("Blend driver steering torque into the ALC angle command"), 0, 1, 1));
   startToggles->addItem(new CValueControl("DisableDM", tr("Disable DM"), "", 0, 2, 1));
   startToggles->addItem(new CValueControl("HotspotOnBoot", tr("Hotspot enabled on boot"), "", 0, 1, 1));
   startToggles->addItem(new CValueControl("SoftwareMenu", tr("Enable Software Menu"), "", 0, 1, 1));
