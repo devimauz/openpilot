@@ -625,6 +625,12 @@ def update_mqb_carstate_alc_state(CS, pt_cp) -> None:
   eps_pla_status_raw = _iqlvbs_decode_mqb_eps_pla_status(pt_cp)
   eps_pla_abbruch_raw = _iqlvbs_decode_mqb_eps_pla_abbruch(pt_cp)
   CS.vw_iq_lvbs_alc_key_slot = _iqlvbs_decode_mqb_alc_key_slot(pt_cp)
+  # Stash the raw frames openpilot actually received so the carcontroller diagnostic
+  # can confirm whether the firmware MitM injection (key slot into LWI_01 byte 7,
+  # PLA status into LH_EPS_03) is reaching the car bus, or if we're seeing stock
+  # passthrough frames (all-zero ALC fields).
+  CS.vw_iq_lvbs_raw_lwi = _iqlvbs_get_message_data(pt_cp, "LWI_01")
+  CS.vw_iq_lvbs_raw_eps = _iqlvbs_get_message_data(pt_cp, "LH_EPS_03")
   CS.EPS_ALC_Status = 8 if eps_pla_status_raw == 11 else eps_pla_status_raw
   CS.vw_iq_lvbs_alc_available = mqb_exported_alc_available(CS.EPS_ALC_Status)
   CS.vw_iq_lvbs_alc_entering = mqb_exported_alc_entering(CS.EPS_ALC_Status)

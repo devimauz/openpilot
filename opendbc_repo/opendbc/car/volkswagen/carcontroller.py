@@ -75,6 +75,14 @@ class CarController(CarControllerBase):
             actuators.steeringAngleDeg, getattr(self, "apply_angle_last", 0.0),
             CS.out.steeringAngleDeg, CS.out.vEgoRaw, CS.out.steeringPressed,
             CS.out.steerFaultTemporary, CS.out.steerFaultPermanent))
+        # Raw frames as received on the powertrain bus. If LWI_01 byte 7 stays 00 and
+        # LH_EPS_03 is unchanging, openpilot is seeing STOCK passthrough (firmware MitM
+        # not injecting / not reaching this bus) rather than the injected ALC copies.
+        raw_lwi = getattr(CS, "vw_iq_lvbs_raw_lwi", b"")
+        raw_eps = getattr(CS, "vw_iq_lvbs_raw_eps", b"")
+        carlog.error("VW ALC raw: LWI_01=%s LH_EPS_03=%s" % (
+          raw_lwi.hex() if isinstance(raw_lwi, (bytes, bytearray)) else "n/a",
+          raw_eps.hex() if isinstance(raw_eps, (bytes, bytearray)) else "n/a"))
 
     elif self.frame % self.CCP.STEER_STEP == 0:
       # Logic to avoid HCA state 4 "refused":
