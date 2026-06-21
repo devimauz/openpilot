@@ -158,6 +158,15 @@ class CarState(CarStateBase):
     # firmware-published crypto key slot (LWI_01 byte 7) so the angle path can engage.
     if self.CP.flags & VolkswagenFlags.TORQUE_INTERCEPTOR:
       update_mqb_carstate_alc_state(self, pt_cp)
+      # In interceptor mode openpilot steers via the EPS park-assist (ALC) channel, not
+      # the stock HCA torque path. The firmware MitM disrupts the stock HCA handshake,
+      # so EPS_HCA_Status reports a fault (FAULT/REJECTED/PREEMPTED) for a path we are
+      # not using. That false-positive steer fault would drop latActive and block the
+      # ALC from ever engaging. Suppress the stock-HCA-derived fault here; the ALC keeps
+      # its own real engagement gating (park-assist availability + crypto key slot + the
+      # firmware-side driver-override handshake), so this does not remove a genuine guard.
+      ret.steerFaultTemporary = False
+      ret.steerFaultPermanent = False
 
     self.frame += 1
     return ret
@@ -264,6 +273,14 @@ class CarState(CarStateBase):
       self.LH_3_Sign = pt_cp.vl["Lenkhilfe_3"]["LH3_BLWSign"]
       self.cruise_main_switch = bool(pt_cp.vl["Motor_5"]["GRA_Hauptschalter"])
       update_pq_carstate_alc_state(self, pt_cp)
+      # In interceptor mode openpilot steers via the EPS park-assist (ALC) channel, not
+      # the stock HCA torque path. The firmware MitM disrupts the stock HCA handshake,
+      # so LH2_Sta_HCA reports a fault for a path we are not using; that false-positive
+      # steer fault would drop latActive and block the ALC. Suppress it here. The ALC
+      # keeps its own real engagement gating (EPS availability + crypto key slot + the
+      # firmware-side driver-override handshake), so this does not remove a real guard.
+      ret.steerFaultTemporary = False
+      ret.steerFaultPermanent = False
 
     self.frame += 1
     return ret
