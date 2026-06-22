@@ -643,6 +643,38 @@ def update_mqb_carstate_alc_state(CS, pt_cp) -> None:
   CS.vw_iq_lvbs_keyslot_seen = max(int(getattr(CS, "vw_iq_lvbs_keyslot_seen", 0)),
                                    int(CS.vw_iq_lvbs_alc_key_slot))
   CS.vw_iq_lvbs_pla_seen = max(int(getattr(CS, "vw_iq_lvbs_pla_seen", 0)), int(eps_pla_status_raw))
+  # LH_EPS_03 freshness/identity probes. len<8 => firmware GET_LEN==8 guard would skip
+  # injection. Track how many DISTINCT LH_EPS_03 payloads we've seen: if >1, both a
+  # stock and an injected copy are reaching the bus (counter race); if exactly 1 and
+  # PLA stays 0, only the stock frame is present (no injection on this bus).
+  CS.vw_iq_lvbs_eps_len = len(eps)
+  eps_seen = getattr(CS, "_vw_iq_lvbs_eps_payloads", None)
+  if eps_seen is None:
+    eps_seen = set()
+    CS._vw_iq_lvbs_eps_payloads = eps_seen
+  if len(eps) >= 8:
+    eps_seen.add(bytes(eps))
+    if len(eps_seen) > 16:
+      eps_seen.clear()
+  CS.vw_iq_lvbs_eps_distinct = len(eps_seen)
+  # Firmware diagnostic frame (0x6A1). Exposes the firmware's own MitM state and the
+  # per-message RX counters so we can tell whether the panda is even receiving 0x09F.
+  fw = _iqlvbs_get_message_data(pt_cp, "ALC_Debug_01")
+  CS.vw_iq_lvbs_fw_debug = fw
+  if len(fw) >= 8:
+    CS.vw_iq_lvbs_fw_alc_status = fw[2] & 0x0F
+    CS.vw_iq_lvbs_fw_eps_pla_status = (fw[2] >> 4) & 0x0F
+    CS.vw_iq_lvbs_fw_key_slot = fw[3]
+    CS.vw_iq_lvbs_fw_saw_lwi = bool(fw[4] & 0x01)
+    CS.vw_iq_lvbs_fw_saw_eps = bool(fw[4] & 0x02)
+    CS.vw_iq_lvbs_fw_sleep = bool(fw[4] & 0x04)
+    CS.vw_iq_lvbs_fw_crash = bool(fw[4] & 0x08)
+    CS.vw_iq_lvbs_fw_control_active = bool(fw[4] & 0x10)
+    CS.vw_iq_lvbs_fw_car_bus_is2 = bool(fw[4] & 0x20)
+    CS.vw_iq_lvbs_fw_ignition = bool(fw[4] & 0x40)
+    CS.vw_iq_lvbs_fw_lwi_rx = fw[5]
+    CS.vw_iq_lvbs_fw_lh_eps_01_rx = fw[6]
+    CS.vw_iq_lvbs_fw_lh_eps_03_rx = fw[7]
   CS.EPS_ALC_Status = 8 if eps_pla_status_raw == 11 else eps_pla_status_raw
   CS.vw_iq_lvbs_alc_available = mqb_exported_alc_available(CS.EPS_ALC_Status)
   CS.vw_iq_lvbs_alc_entering = mqb_exported_alc_entering(CS.EPS_ALC_Status)

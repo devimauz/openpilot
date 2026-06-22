@@ -86,11 +86,40 @@ class CarController(CarControllerBase):
         # Freshness + ever-seen probe. lwiCtr/epsCtr should advance every sample on a
         # live 100Hz bus; if frozen, the parser is rejecting injected frames (stale).
         # keySlotSeen/plaSeen latch the highest values ever observed.
-        carlog.error("VW ALC live: lwiCtr=%s epsCtr=%s keySlotSeen=%s plaSeen=%s" % (
+        carlog.error("VW ALC live: lwiCtr=%s epsCtr=%s keySlotSeen=%s plaSeen=%s "
+                     "eps03Len=%s eps03Distinct=%s" % (
           getattr(CS, "vw_iq_lvbs_lwi_counter", None),
           getattr(CS, "vw_iq_lvbs_eps_counter", None),
           getattr(CS, "vw_iq_lvbs_keyslot_seen", None),
-          getattr(CS, "vw_iq_lvbs_pla_seen", None)))
+          getattr(CS, "vw_iq_lvbs_pla_seen", None),
+          getattr(CS, "vw_iq_lvbs_eps_len", None),
+          getattr(CS, "vw_iq_lvbs_eps_distinct", None)))
+        # Firmware self-report via 0x6A1 (ALC_Debug_01). The RX counters are the
+        # decisive probe: if lh_eps_03_rx stays 0 while lwi_rx advances, the panda is
+        # NOT receiving 0x09F on the EPS bus (wiring/bus mapping), so it can't inject
+        # the PLA-available LH_EPS_03 copy. carBusIs2 confirms the forced bus mapping.
+        fw = getattr(CS, "vw_iq_lvbs_fw_debug", b"")
+        if isinstance(fw, (bytes, bytearray)) and len(fw) >= 8:
+          carlog.error(
+            "VW ALC fw: %s sawLwi=%s sawEps=%s liveSlot=%s fwAlcStatus=%s fwEpsPla=%s "
+            "lwiRx=%s lhEps01Rx=%s lhEps03Rx=%s ctrlActive=%s carBusIs2=%s ign=%s "
+            "sleep=%s crash=%s" % (
+              fw.hex(),
+              getattr(CS, "vw_iq_lvbs_fw_saw_lwi", None),
+              getattr(CS, "vw_iq_lvbs_fw_saw_eps", None),
+              getattr(CS, "vw_iq_lvbs_fw_key_slot", None),
+              getattr(CS, "vw_iq_lvbs_fw_alc_status", None),
+              getattr(CS, "vw_iq_lvbs_fw_eps_pla_status", None),
+              getattr(CS, "vw_iq_lvbs_fw_lwi_rx", None),
+              getattr(CS, "vw_iq_lvbs_fw_lh_eps_01_rx", None),
+              getattr(CS, "vw_iq_lvbs_fw_lh_eps_03_rx", None),
+              getattr(CS, "vw_iq_lvbs_fw_control_active", None),
+              getattr(CS, "vw_iq_lvbs_fw_car_bus_is2", None),
+              getattr(CS, "vw_iq_lvbs_fw_ignition", None),
+              getattr(CS, "vw_iq_lvbs_fw_sleep", None),
+              getattr(CS, "vw_iq_lvbs_fw_crash", None)))
+        else:
+          carlog.error("VW ALC fw: 0x6A1 not received (firmware debug frame absent)")
 
     elif self.frame % self.CCP.STEER_STEP == 0:
       # Logic to avoid HCA state 4 "refused":
