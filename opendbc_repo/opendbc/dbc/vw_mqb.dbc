@@ -1290,24 +1290,6 @@ BO_ 294 HCA_01: 8 Frontsensorik
  SG_ EA_ACC_Wunschgeschwindigkeit : 41|10@1+ (0.32,0) [0|327.04] "Unit_KiloMeterPerHour"  Frontradar
  SG_ HCA_01_ALC_Angle : 40|13@1+ (0.1,0) [0|819.1] "Unit_DegreOfArc" Vector__XXX
 
-BO_ 1697 ALC_Debug_01: 8 XXX
- SG_ ALC_DBG_Checksum : 0|8@1+ (1,0) [0|255] "" XXX
- SG_ ALC_DBG_Counter : 8|4@1+ (1,0) [0|15] "" XXX
- SG_ ALC_DBG_Version : 12|4@1+ (1,0) [0|15] "" XXX
- SG_ ALC_DBG_AlcStatus : 16|4@1+ (1,0) [0|15] "" XXX
- SG_ ALC_DBG_EpsPlaStatus : 20|4@1+ (1,0) [0|15] "" XXX
- SG_ ALC_DBG_KeySlot : 24|8@1+ (1,0) [0|255] "" XXX
- SG_ ALC_DBG_SawLwi : 32|1@1+ (1,0) [0|1] "" XXX
- SG_ ALC_DBG_SawEps : 33|1@1+ (1,0) [0|1] "" XXX
- SG_ ALC_DBG_Sleep : 34|1@1+ (1,0) [0|1] "" XXX
- SG_ ALC_DBG_Crash : 35|1@1+ (1,0) [0|1] "" XXX
- SG_ ALC_DBG_ControlActive : 36|1@1+ (1,0) [0|1] "" XXX
- SG_ ALC_DBG_CarBusIs2 : 37|1@1+ (1,0) [0|1] "" XXX
- SG_ ALC_DBG_Ignition : 38|1@1+ (1,0) [0|1] "" XXX
- SG_ ALC_DBG_LwiRxCount : 40|8@1+ (1,0) [0|255] "" XXX
- SG_ ALC_DBG_LhEps01RxCount : 48|8@1+ (1,0) [0|255] "" XXX
- SG_ ALC_DBG_LhEps03RxCount : 56|8@1+ (1,0) [0|255] "" XXX
-
 BO_ 159 LH_EPS_03: 8 XXX
  SG_ CHECKSUM : 0|8@1+ (1,0) [0|255] ""  XXX
  SG_ COUNTER : 8|4@1+ (1,0) [0|15] ""  XXX

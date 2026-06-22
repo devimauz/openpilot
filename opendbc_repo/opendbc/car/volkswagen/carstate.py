@@ -321,12 +321,6 @@ class CarState(CarStateBase):
     if CP.transmissionType == TransmissionType.direct:
       pt_messages.append(("Motor_EV_01", 10))
 
-    if CP.flags & VolkswagenFlags.TORQUE_INTERCEPTOR:
-      # ALC interceptor firmware diagnostic frame (0x6A1), emitted on the car bus
-      # at the ESP_21 rate. Lets us read the firmware's own MitM state + per-message
-      # RX counters to see why availability stays 0.
-      pt_messages.append(("ALC_Debug_01", 50))
-
     if CP.networkLocation == NetworkLocation.fwdCamera:
       # Radars are here on CANBUS.pt
       pt_messages += MqbExtraSignals.fwd_radar_messages
