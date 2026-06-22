@@ -35,19 +35,10 @@ IQLVBS_MQB_HCA_STATUS_READY = 3
 IQLVBS_MQB_HCA_STATUS_ACTIVE = 7
 IQLVBS_ALC_REENGAGE_WINDOW_FRAMES = int(10.0 / DT_CTRL)
 IQLVBS_ALC_DOUBLE_SET_MAX_FRAMES = int(1.0 / DT_CTRL)
-# Hold window for the injected LH_EPS_03 PLA status, to bridge stock duplicates that
-# clobber .dat with a PLA-zero frame. ~150 ms is long enough to span the alternation
-# yet short enough that a real EPS drop-out clears availability promptly.
-IQLVBS_MQB_PLA_HOLD_FRAMES = int(0.15 / DT_CTRL)
 IQLVBS_TORQUE_ANGLE_SIGN_FLIP_MIN_ABS_ANGLE_DEG = 1.0
-# Overshoot feedback gains for the torque-like angle controller. KP adds angle
-# proportional to the desired-vs-actual lateral-accel error; too high causes
-# ping-pong oscillation in curves (the loop overshoots, the error flips sign and it
-# pulls back). KD damps that via lateral-jerk. Tuned down from 6.0/0.05 to reduce
-# curve oscillation; lower KP further or raise KD if it still hunts.
-IQLVBS_TORQUE_ANGLE_KP_DEG_PER_LAT_ACCEL = 3.0
-IQLVBS_TORQUE_ANGLE_KD_DEG_PER_LAT_JERK = 0.15
-IQLVBS_TORQUE_ANGLE_MAX_OVERSHOOT_DEG = 8.0
+IQLVBS_TORQUE_ANGLE_KP_DEG_PER_LAT_ACCEL = 6.0
+IQLVBS_TORQUE_ANGLE_KD_DEG_PER_LAT_JERK = 0.05
+IQLVBS_TORQUE_ANGLE_MAX_OVERSHOOT_DEG = 12.0
 IQLVBS_TORQUE_BLEND_DEADBAND_CNM = 100.0
 IQLVBS_TORQUE_BLEND_PQ_SAT_CNM = 360.0
 IQLVBS_TORQUE_BLEND_MQB_SAT_CNM = 550.0
@@ -652,30 +643,11 @@ def update_mqb_carstate_alc_state(CS, pt_cp) -> None:
   CS.vw_iq_lvbs_keyslot_seen = max(int(getattr(CS, "vw_iq_lvbs_keyslot_seen", 0)),
                                    int(CS.vw_iq_lvbs_alc_key_slot))
   CS.vw_iq_lvbs_pla_seen = max(int(getattr(CS, "vw_iq_lvbs_pla_seen", 0)), int(eps_pla_status_raw))
-
-  # The firmware's injected LH_EPS_03 copy ALWAYS encodes the PLA status as ACTIVE(6)
-  # or AVAILABLE(11); a stock LH_EPS_03 carries 0 in that field. The gateway re-emits
-  # the stock LH_EPS_03 on the powertrain bus, so openpilot receives both the injected
-  # copy (6/11) and a stock duplicate (0) each cycle with the same counter, and .dat
-  # keeps whichever arrived last. Treat a PLA-zero frame as a stock duplicate (no
-  # update) and hold the last injected status for a short window so the engagement gate
-  # doesn't flicker. A genuine EPS drop-out stops the injected stream entirely, so the
-  # hold decays and availability clears within ~IQLVBS_MQB_PLA_HOLD_FRAMES.
-  if eps_pla_status_raw in (6, 8, 11):
-    CS.vw_iq_lvbs_pla_hold_value = 8 if eps_pla_status_raw == 11 else eps_pla_status_raw
-    CS.vw_iq_lvbs_pla_hold_frames = IQLVBS_MQB_PLA_HOLD_FRAMES
-    CS.vw_iq_lvbs_pla_hold_abbruch = eps_pla_abbruch_raw
-  elif int(getattr(CS, "vw_iq_lvbs_pla_hold_frames", 0)) > 0:
-    CS.vw_iq_lvbs_pla_hold_frames = int(CS.vw_iq_lvbs_pla_hold_frames) - 1
-  else:
-    CS.vw_iq_lvbs_pla_hold_value = 0
-    CS.vw_iq_lvbs_pla_hold_abbruch = 0
-
-  CS.EPS_ALC_Status = int(getattr(CS, "vw_iq_lvbs_pla_hold_value", 0))
+  CS.EPS_ALC_Status = 8 if eps_pla_status_raw == 11 else eps_pla_status_raw
   CS.vw_iq_lvbs_alc_available = mqb_exported_alc_available(CS.EPS_ALC_Status)
   CS.vw_iq_lvbs_alc_entering = mqb_exported_alc_entering(CS.EPS_ALC_Status)
   CS.vw_iq_lvbs_alc_active = mqb_exported_alc_active(CS.EPS_ALC_Status)
-  CS.EPS_ALC_Abbruch = int(getattr(CS, "vw_iq_lvbs_pla_hold_abbruch", 0))
+  CS.EPS_ALC_Abbruch = eps_pla_abbruch_raw
 
 
 def update_pq_carstate_alc_state(CS, pt_cp) -> None:
