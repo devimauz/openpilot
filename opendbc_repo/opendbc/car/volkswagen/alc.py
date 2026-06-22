@@ -724,7 +724,7 @@ def _iqlvbs_double_set_reengage_requested(controller, CS, override_active: bool,
   return True
 
 
-def _run_pq_alc(controller, CC, CS, actuators, can_sends, transport_enabled: bool = True) -> None:
+def _run_pq_alc(controller, CC, CS, actuators, can_sends) -> None:
   key_slot = _iqlvbs_sync_pq_crypto_session(controller, getattr(CS, "vw_iq_lvbs_alc_key_slot", 0))
   controller.ALC_feedback_entering = exported_alc_entering(CS)
   controller.ALC_feedback_active = exported_alc_active(CS)
@@ -772,7 +772,7 @@ def _run_pq_alc(controller, CC, CS, actuators, can_sends, transport_enabled: boo
       controller.ALC_override_clear_frames = override_clear_frames - 1
     else:
       controller.ALC_status = IQLVBS_PQ_HCA_STATUS_READY
-  elif transport_enabled and CC.latActive and not controller.ALC_driverExit:
+  elif CC.latActive and not controller.ALC_driverExit:
     controller.ALC_status = IQLVBS_PQ_HCA_STATUS_ALC_ANGLE
     controller.ALC_entryCounter = 0
   else:
@@ -828,7 +828,7 @@ def _run_pq_alc(controller, CC, CS, actuators, can_sends, transport_enabled: boo
   controller.CSLH3_SignLast = CS.LH_3_Sign
 
 
-def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque, transport_enabled: bool = True) -> None:
+def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None:
   key_slot = _iqlvbs_sync_mqb_crypto_session(controller, getattr(CS, "vw_iq_lvbs_alc_key_slot", 0))
   controller.ALC_feedback_entering = exported_alc_entering(CS)
   controller.ALC_feedback_active = exported_alc_active(CS)
@@ -843,7 +843,7 @@ def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque, transpo
   elif not CC.latActive:
     controller.ALC_reentry_blocked = False
 
-  if transport_enabled and CC.latActive and not controller.ALC_driverExit and not controller.ALC_reentry_blocked:
+  if CC.latActive and not controller.ALC_driverExit and not controller.ALC_reentry_blocked:
     controller.ALC_status = IQLVBS_MQB_HCA_STATUS_ACTIVE
   else:
     controller.ALC_status = IQLVBS_MQB_HCA_STATUS_READY
@@ -938,19 +938,14 @@ def update_vw_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> Non
   if controller.frame % controller.CCP.STEER_STEP != 0:
     return
 
-  if not angle_lateral_control_requested(controller):
+  if not angle_lateral_control_enabled(controller, CS):
     if controller.CCS == mqbcan:
       _iqlvbs_reset_mqb_crypto(controller)
     elif controller.CCS == pqcan:
       _iqlvbs_reset_pq_crypto(controller)
     return
 
-  # Keep emitting HCA_01/HCA so the firmware key-slot handshake (keychange) stays alive
-  # even before the module reports available / publishes a key slot. The angle is only
-  # commanded once the transport is fully enabled; otherwise we send a READY idle frame.
-  transport_enabled = angle_lateral_control_enabled(controller, CS)
-
   if controller.CCS == pqcan:
-    _run_pq_alc(controller, CC, CS, actuators, can_sends, transport_enabled)
+    _run_pq_alc(controller, CC, CS, actuators, can_sends)
   elif controller.CCS == mqbcan:
-    _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque, transport_enabled)
+    _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque)
