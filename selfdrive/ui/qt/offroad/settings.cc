@@ -702,6 +702,8 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles->addItem(new CValueControl("CustomSR", tr("LAT: SteerRatiox0.1(0)"), tr("Custom SteerRatio"), 0, 300, 1));
   latLongToggles->addItem(new CValueControl("SteerRatioRate", tr("LAT: SteerRatioRatex0.01(100)"), tr("SteerRatio apply rate"), 30, 170, 1));
   latLongToggles->addItem(new CValueControl("PathOffset", tr("LAT: PathOffset"), tr("(-)left, (+)right"), -150, 150, 1));
+  latLongToggles->addItem(new ParamControl("AngleLateralControl", tr("VW ALC"), tr("Use the redpanda VW angle lateral control path instead of stock torque HCA."), "", this));
+  latLongToggles->addItem(new ParamControl("ALCTorqueBlend", tr("VW ALC Torque Blend"), tr("Blend driver torque into the VW ALC angle request."), "", this));
   latLongToggles->addItem(new CValueControl("SteerActuatorDelay", tr("LAT:SteerActuatorDelay(30)"), tr("x0.01, 0:LiveDelay"), 0, 100, 1));
   latLongToggles->addItem(new CValueControl("LatSmoothSec", tr("LAT:LatSmoothSec(13)"), tr("x0.01"), 1, 30, 1));
   latLongToggles->addItem(new CValueControl("LateralTorqueCustom", tr("LAT: TorqueCustom(0)"), "", 0, 2, 1));

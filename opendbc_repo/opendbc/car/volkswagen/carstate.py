@@ -3,6 +3,7 @@ from opendbc.can.parser import CANParser
 from opendbc.car import Bus, structs
 from opendbc.car.interfaces import CarStateBase
 from opendbc.car.common.conversions import Conversions as CV
+from opendbc.car.volkswagen import alc
 from opendbc.car.volkswagen.values import DBC, CANBUS, NetworkLocation, TransmissionType, GearShifter, \
                                                       CarControllerParams, VolkswagenFlags
 
@@ -30,6 +31,11 @@ class CarState(CarStateBase):
     self.esp_hold_confirmation = False
     self.upscale_lead_car_signal = False
     self.eps_stock_values = False
+    self.vw_iq_lvbs_alc_available = False
+    self.vw_iq_lvbs_alc_entering = False
+    self.vw_iq_lvbs_alc_active = False
+    self.vw_iq_lvbs_alc_key_slot = 1
+    self.alcOverrideAlert = False
 
   def update_button_enable(self, buttonEvents: list[structs.CarState.ButtonEvent]):
     if not self.CP.pcmCruise:
@@ -150,6 +156,7 @@ class CarState(CarStateBase):
     self.eps_stock_values = pt_cp.vl["LH_EPS_03"]
     self.ldw_stock_values = cam_cp.vl["LDW_02"] if self.CP.networkLocation == NetworkLocation.fwdCamera else {}
     self.gra_stock_values = pt_cp.vl["GRA_ACC_01"]
+    alc.update_mqb_carstate_alc_state(self, pt_cp)
 
     ret.buttonEvents = self.create_button_events(pt_cp, self.CCP.BUTTONS)
 
@@ -248,6 +255,10 @@ class CarState(CarStateBase):
                                                                             pt_cp.vl["Gate_Komf_1"]["GK1_Blinker_re"])
     ret.buttonEvents = self.create_button_events(pt_cp, self.CCP.BUTTONS)
     self.gra_stock_values = pt_cp.vl["GRA_Neu"]
+    self.cruise_main_switch = ret.cruiseState.available
+    self.LH2_Abbr = 0
+    self.LH_3_Sign = int(pt_cp.vl["Lenkhilfe_3"]["LH3_BLWSign"])
+    alc.update_pq_carstate_alc_state(self, pt_cp)
 
     # Additional safety checks performed in CarInterface.
     ret.espDisabled = bool(pt_cp.vl["Bremse_1"]["ESP_Passiv_getastet"])
@@ -363,4 +374,3 @@ class CarState(CarStateBase):
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, CANBUS.pt),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, CANBUS.cam),
     }
-

@@ -1,9 +1,11 @@
 import numpy as np
+from openpilot.common.params import Params
 from opendbc.can import CANPacker
 from opendbc.car import Bus, DT_CTRL, apply_driver_steer_torque_limits, structs
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.interfaces import CarControllerBase
-from opendbc.car.volkswagen import mqbcan, pqcan
+from opendbc.car.vehicle_model import VehicleModel
+from opendbc.car.volkswagen import alc, mqbcan, pqcan
 from opendbc.car.volkswagen.values import CANBUS, CarControllerParams, VolkswagenFlags
 
 VisualAlert = structs.CarControl.HUDControl.VisualAlert
@@ -15,6 +17,9 @@ class CarController(CarControllerBase):
     super().__init__(dbc_names, CP)
     self.CCP = CarControllerParams(CP)
     self.CCS = pqcan if CP.flags & VolkswagenFlags.PQ else mqbcan
+    self.CAN = CANBUS
+    self.VM = VehicleModel(CP)
+    self._params = Params()
     self.packer_pt = CANPacker(dbc_names[Bus.pt])
     self.ext_bus = CANBUS.pt if CP.networkLocation == structs.CarParams.NetworkLocation.fwdCamera else CANBUS.cam
     self.aeb_available = not CP.flags & VolkswagenFlags.PQ
@@ -29,10 +34,12 @@ class CarController(CarControllerBase):
     actuators = CC.actuators
     hud_control = CC.hudControl
     can_sends = []
+    apply_torque = self.apply_torque_last
 
     # **** Steering Controls ************************************************ #
 
     if self.frame % self.CCP.STEER_STEP == 0:
+      alc_transport_enabled = alc.angle_lateral_control_transport_enabled(self, CS)
       # Logic to avoid HCA state 4 "refused":
       #   * Don't steer unless HCA is in state 3 "ready" or 5 "active"
       #   * Don't steer at standstill
@@ -63,9 +70,10 @@ class CarController(CarControllerBase):
 
       self.eps_timer_soft_disable_alert = self.hca_frame_timer_running > self.CCP.STEER_TIME_ALERT / DT_CTRL
       self.apply_torque_last = apply_torque
-      can_sends.append(self.CCS.create_steering_control(self.packer_pt, CANBUS.pt, apply_torque, hca_enabled))
+      if not alc_transport_enabled:
+        can_sends.append(self.CCS.create_steering_control(self.packer_pt, CANBUS.pt, apply_torque, hca_enabled))
 
-      if self.CP.flags & VolkswagenFlags.STOCK_HCA_PRESENT:
+      if self.CP.flags & VolkswagenFlags.STOCK_HCA_PRESENT and not alc_transport_enabled:
         # Pacify VW Emergency Assist driver inactivity detection by changing its view of driver steering input torque
         # to the greatest of actual driver input or 2x openpilot's output (1x openpilot output is not enough to
         # consistently reset inactivity detection on straight level roads). See commaai/openpilot#23274 for background.
@@ -73,6 +81,8 @@ class CarController(CarControllerBase):
         if abs(CS.out.steeringTorque) > abs(ea_simulated_torque):
           ea_simulated_torque = CS.out.steeringTorque
         can_sends.append(self.CCS.create_eps_update(self.packer_pt, CANBUS.cam, CS.eps_stock_values, ea_simulated_torque))
+
+    alc.update_vw_alc(self, CC, CS, actuators, can_sends, apply_torque)
 
     # **** Acceleration Controls ******************************************** #
 
