@@ -390,14 +390,11 @@ def angle_lateral_control_requested(controller) -> bool:
 
 
 def angle_lateral_control_enabled(controller, CS) -> bool:
-  if not angle_lateral_control_requested(controller):
-    return False
-
-  return bool(getattr(CS, "vw_iq_lvbs_alc_available", False))
+  return angle_lateral_control_requested(controller)
 
 
 def angle_lateral_control_transport_enabled(controller, CS) -> bool:
-  return angle_lateral_control_enabled(controller, CS)
+  return angle_lateral_control_requested(controller)
 
 
 def pq_exported_alc_available(status: int) -> bool:
