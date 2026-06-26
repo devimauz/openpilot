@@ -267,12 +267,9 @@ class CarState(CarStateBase):
     return ret
 
   def update_hca_state(self, hca_status, drive_mode=True):
-    # Treat FAULT as temporary for worst likely EPS recovery time, for cars without factory Lane Assist
-    # DISABLED means the EPS hasn't been configured to support Lane Assist
-    self.eps_init_complete = self.eps_init_complete or (hca_status in ("DISABLED", "READY", "ACTIVE") or self.frame > 600)
-    perm_fault = drive_mode and hca_status == "DISABLED" or (self.eps_init_complete and hca_status == "FAULT")
-    temp_fault = drive_mode and hca_status in ("REJECTED", "PREEMPTED") or not self.eps_init_complete
-    return temp_fault, perm_fault
+    # HCA/LKAS status is unreliable on this branch and can report false faults.
+    # Ignore it for openpilot steer fault events.
+    return False, False
 
   @staticmethod
   def get_can_parsers(CP):
