@@ -87,10 +87,7 @@ def _iqlvbs_get_param_bool(params, key: str, default: bool = False) -> bool:
 
 
 def _iqlvbs_get_lat_smooth_sec(controller) -> float:
-  params = getattr(controller, "_params", None)
-  lat_smooth_raw = _iqlvbs_get_param_int(params, "LatSmoothSec", 13)
-  lat_smooth_raw = min(max(int(lat_smooth_raw), 0), 30)
-  return lat_smooth_raw * 0.01
+  return 0.0
 
 
 def _iqlvbs_get_identity_prog_map(max_angle: float) -> tuple[list[float], list[float]]:
