@@ -23,10 +23,12 @@ IQLVBS_ALC_REENGAGE_WINDOW_FRAMES = int(10.0 / DT_CTRL)
 IQLVBS_ALC_DOUBLE_SET_MAX_FRAMES = int(1.0 / DT_CTRL)
 IQLVBS_TORQUE_ANGLE_SIGN_FLIP_MIN_ABS_ANGLE_DEG = 1.0
 IQLVBS_TORQUE_ANGLE_ERROR_DEADBAND_DEG = 0.0
+IQLVBS_TORQUE_ANGLE_KP_DEG_PER_ANGLE_ERR = 0.5
+IQLVBS_TORQUE_ANGLE_MAX_ANGLE_ERR_BOOST_DEG = 3.0
 IQLVBS_TORQUE_ANGLE_KP_DEG_PER_LAT_ACCEL = 5.0
 IQLVBS_TORQUE_ANGLE_KD_DEG_PER_LAT_JERK = 0.015
 IQLVBS_TORQUE_ANGLE_MAX_OVERSHOOT_DEG = 8.0
-IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC = 0.04
+IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC = 0.0
 IQLVBS_TORQUE_BLEND_DEADBAND_CNM = 150.0
 IQLVBS_TORQUE_BLEND_PQ_SAT_CNM = 360.0
 IQLVBS_TORQUE_BLEND_MQB_SAT_CNM = 550.0
@@ -341,9 +343,15 @@ def _iqlvbs_apply_torque_like_angle(controller, CS, actual_angle_deg: float, saf
   )
 
   setattr(controller, err_attr, float(lat_accel_err))
+  angle_err = float(safe_desired_angle_deg) - float(actual_angle_deg)
+  angle_err_boost = angle_err * IQLVBS_TORQUE_ANGLE_KP_DEG_PER_ANGLE_ERR
+  angle_err_boost = max(min(angle_err_boost, IQLVBS_TORQUE_ANGLE_MAX_ANGLE_ERR_BOOST_DEG),
+                        -IQLVBS_TORQUE_ANGLE_MAX_ANGLE_ERR_BOOST_DEG)
+  overshoot = max(min(float(overshoot) + angle_err_boost, max_overshoot), -max_overshoot)
+
   overshoot_last = float(getattr(controller, overshoot_attr, 0.0))
   dt = DT_CTRL * max(int(getattr(controller.CCP, "STEER_STEP", 1)), 1)
-  alpha = 1.0 - math.exp(-dt / IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC)
+  alpha = 1.0 if IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC <= 0.0 else 1.0 - math.exp(-dt / IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC)
   smoothed_overshoot = overshoot_last + alpha * (float(overshoot) - overshoot_last)
   commanded_angle = float(safe_desired_angle_deg) + smoothed_overshoot
 
