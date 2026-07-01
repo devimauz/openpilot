@@ -5,6 +5,7 @@ import math
 import os
 
 from opendbc.car import DT_CTRL, structs
+from opendbc.car.common.pid import PIDController
 from opendbc.car.volkswagen import mqbcan, pqcan
 from opendbc.car.volkswagen.values import CAR, CarControllerParams, VolkswagenFlags
 
@@ -21,14 +22,12 @@ IQLVBS_MQB_HCA_STATUS_READY = 3
 IQLVBS_MQB_HCA_STATUS_ACTIVE = 7
 IQLVBS_ALC_REENGAGE_WINDOW_FRAMES = int(10.0 / DT_CTRL)
 IQLVBS_ALC_DOUBLE_SET_MAX_FRAMES = int(1.0 / DT_CTRL)
-IQLVBS_TORQUE_ANGLE_SIGN_FLIP_MIN_ABS_ANGLE_DEG = 1.0
-IQLVBS_TORQUE_ANGLE_ERROR_DEADBAND_DEG = 0.0
-IQLVBS_TORQUE_ANGLE_KP_DEG_PER_ANGLE_ERR = 0.5
-IQLVBS_TORQUE_ANGLE_MAX_ANGLE_ERR_BOOST_DEG = 3.0
-IQLVBS_TORQUE_ANGLE_KP_DEG_PER_LAT_ACCEL = 5.0
-IQLVBS_TORQUE_ANGLE_KD_DEG_PER_LAT_JERK = 0.015
-IQLVBS_TORQUE_ANGLE_MAX_OVERSHOOT_DEG = 8.0
-IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC = 0.0
+IQLVBS_ALC_PID_SIGN_FLIP_MIN_ABS_ANGLE_DEG = 1.0
+IQLVBS_ALC_PID_ERROR_DEADBAND_DEG = 0.0
+IQLVBS_ALC_PID_KP = 0.45
+IQLVBS_ALC_PID_KI = 0.04
+IQLVBS_ALC_PID_KD = 0.015
+IQLVBS_ALC_PID_MAX_CORRECTION_DEG = 8.0
 IQLVBS_TORQUE_BLEND_DEADBAND_CNM = 150.0
 IQLVBS_TORQUE_BLEND_PQ_SAT_CNM = 360.0
 IQLVBS_TORQUE_BLEND_MQB_SAT_CNM = 550.0
@@ -277,94 +276,79 @@ def _iqlvbs_apply_torque_blend(controller, CS, desired_angle: float, active: boo
   return desired_angle + offset
 
 
-def _iqlvbs_torque_like_angle(desired_angle_deg: float, actual_angle_deg: float, v_ego: float, roll: float, VM, kp_deg_per_lat_accel: float, kd_deg_per_lat_jerk: float, max_overshoot_deg: float, lat_accel_err_last: float, dt: float) -> tuple[float, float, float]:
-  v_ego_clip = max(v_ego, 1.0)
-
-  desired_curv = VM.calc_curvature(math.radians(desired_angle_deg), v_ego_clip, roll)
-  actual_curv = VM.calc_curvature(math.radians(actual_angle_deg), v_ego_clip, roll)
-
-  desired_lat_accel = desired_curv * v_ego_clip ** 2
-  actual_lat_accel = actual_curv * v_ego_clip ** 2
-
-  lat_accel_err = desired_lat_accel - actual_lat_accel
-  lat_jerk_err = (lat_accel_err - lat_accel_err_last) / dt if dt > 0 else 0.0
-
-  overshoot = kp_deg_per_lat_accel * lat_accel_err + kd_deg_per_lat_jerk * lat_jerk_err
-  overshoot = max(min(float(overshoot), max_overshoot_deg), -max_overshoot_deg)
-
-  return desired_angle_deg + overshoot, lat_accel_err, overshoot
+def _iqlvbs_reset_pid_angle(controller, state_attr_prefix: str) -> None:
+  pid = getattr(controller, f"{state_attr_prefix}_pid", None)
+  if pid is not None:
+    pid.reset()
+  setattr(controller, f"{state_attr_prefix}_error_last", 0.0)
 
 
-def _iqlvbs_apply_torque_like_angle(controller, CS, actual_angle_deg: float, safe_desired_angle_deg: float,
-                                    active: bool, state_attr_prefix: str) -> float:
-  err_attr = f"{state_attr_prefix}_lat_accel_err_last"
-  overshoot_attr = f"{state_attr_prefix}_overshoot_last"
+def _iqlvbs_get_pid_angle_controller(controller, state_attr_prefix: str):
+  pid_attr = f"{state_attr_prefix}_pid"
+  pid = getattr(controller, pid_attr, None)
+  if pid is None:
+    rate = 1.0 / (DT_CTRL * max(int(getattr(controller.CCP, "STEER_STEP", 1)), 1))
+    pid = PIDController(
+      IQLVBS_ALC_PID_KP,
+      IQLVBS_ALC_PID_KI,
+      k_d=IQLVBS_ALC_PID_KD,
+      pos_limit=IQLVBS_ALC_PID_MAX_CORRECTION_DEG,
+      neg_limit=-IQLVBS_ALC_PID_MAX_CORRECTION_DEG,
+      rate=rate,
+    )
+    setattr(controller, pid_attr, pid)
+  return pid
+
+
+def _iqlvbs_apply_pid_angle(controller, CS, actual_angle_deg: float, safe_desired_angle_deg: float,
+                            active: bool, state_attr_prefix: str) -> float:
   active_last_attr = f"{state_attr_prefix}_active_last"
+  error_last_attr = f"{state_attr_prefix}_error_last"
 
-  if active and not bool(getattr(controller, active_last_attr, False)):
-    setattr(controller, err_attr, 0.0)
-    setattr(controller, overshoot_attr, 0.0)
+  active_last = bool(getattr(controller, active_last_attr, False))
   setattr(controller, active_last_attr, bool(active))
 
   if not active:
-    setattr(controller, err_attr, 0.0)
-    setattr(controller, overshoot_attr, 0.0)
+    _iqlvbs_reset_pid_angle(controller, state_attr_prefix)
     return safe_desired_angle_deg
 
-  if abs(float(safe_desired_angle_deg) - float(actual_angle_deg)) <= IQLVBS_TORQUE_ANGLE_ERROR_DEADBAND_DEG:
-    setattr(controller, err_attr, 0.0)
-    setattr(controller, overshoot_attr, 0.0)
+  angle_error = float(safe_desired_angle_deg) - float(actual_angle_deg)
+  if not active_last:
+    _iqlvbs_reset_pid_angle(controller, state_attr_prefix)
+    setattr(controller, error_last_attr, angle_error)
+  if abs(angle_error) <= IQLVBS_ALC_PID_ERROR_DEADBAND_DEG:
+    _iqlvbs_reset_pid_angle(controller, state_attr_prefix)
     return safe_desired_angle_deg
 
-  if (abs(float(safe_desired_angle_deg)) >= IQLVBS_TORQUE_ANGLE_SIGN_FLIP_MIN_ABS_ANGLE_DEG and
-      abs(float(actual_angle_deg)) >= IQLVBS_TORQUE_ANGLE_SIGN_FLIP_MIN_ABS_ANGLE_DEG and
+  if (abs(float(safe_desired_angle_deg)) >= IQLVBS_ALC_PID_SIGN_FLIP_MIN_ABS_ANGLE_DEG and
+      abs(float(actual_angle_deg)) >= IQLVBS_ALC_PID_SIGN_FLIP_MIN_ABS_ANGLE_DEG and
       ((float(safe_desired_angle_deg) > 0.0 and float(actual_angle_deg) < 0.0) or
        (float(safe_desired_angle_deg) < 0.0 and float(actual_angle_deg) > 0.0))):
-    setattr(controller, err_attr, 0.0)
-    setattr(controller, overshoot_attr, 0.0)
+    _iqlvbs_reset_pid_angle(controller, state_attr_prefix)
     return safe_desired_angle_deg
 
-  kp = IQLVBS_TORQUE_ANGLE_KP_DEG_PER_LAT_ACCEL
-  kd = IQLVBS_TORQUE_ANGLE_KD_DEG_PER_LAT_JERK
-  max_overshoot = IQLVBS_TORQUE_ANGLE_MAX_OVERSHOOT_DEG
-  lat_accel_err_last = float(getattr(controller, err_attr, 0.0))
-
-  _, lat_accel_err, overshoot = _iqlvbs_torque_like_angle(
-    float(safe_desired_angle_deg),
-    float(actual_angle_deg),
-    float(CS.out.vEgoRaw),
-    0.0,
-    controller.VM,
-    kp,
-    kd,
-    max_overshoot,
-    lat_accel_err_last,
-    DT_CTRL * controller.CCP.STEER_STEP,
-  )
-
-  setattr(controller, err_attr, float(lat_accel_err))
-  angle_err = float(safe_desired_angle_deg) - float(actual_angle_deg)
-  angle_err_boost = angle_err * IQLVBS_TORQUE_ANGLE_KP_DEG_PER_ANGLE_ERR
-  angle_err_boost = max(min(angle_err_boost, IQLVBS_TORQUE_ANGLE_MAX_ANGLE_ERR_BOOST_DEG),
-                        -IQLVBS_TORQUE_ANGLE_MAX_ANGLE_ERR_BOOST_DEG)
-  overshoot = max(min(float(overshoot) + angle_err_boost, max_overshoot), -max_overshoot)
-
-  overshoot_last = float(getattr(controller, overshoot_attr, 0.0))
   dt = DT_CTRL * max(int(getattr(controller.CCP, "STEER_STEP", 1)), 1)
-  alpha = 1.0 if IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC <= 0.0 else 1.0 - math.exp(-dt / IQLVBS_TORQUE_ANGLE_OVERSHOOT_TAU_SEC)
-  smoothed_overshoot = overshoot_last + alpha * (float(overshoot) - overshoot_last)
-  commanded_angle = float(safe_desired_angle_deg) + smoothed_overshoot
+  error_last = float(getattr(controller, error_last_attr, 0.0))
+  error_rate = (angle_error - error_last) / dt if dt > 0.0 else 0.0
+  pid = _iqlvbs_get_pid_angle_controller(controller, state_attr_prefix)
+  correction = pid.update(
+    angle_error,
+    error_rate=error_rate,
+    speed=float(getattr(CS.out, "vEgoRaw", CS.out.vEgo)),
+    override=bool(getattr(CS.out, "steeringPressed", False)),
+  )
+  commanded_angle = float(safe_desired_angle_deg) + float(correction)
 
-  setattr(controller, overshoot_attr, float(smoothed_overshoot))
+  setattr(controller, error_last_attr, angle_error)
   return float(max(min(commanded_angle, IQLVBS_ALC_STEER_ANGLE_MAX), -IQLVBS_ALC_STEER_ANGLE_MAX))
 
 
-def _iqlvbs_get_pre_torque_angle_last(controller, state_attr_prefix: str) -> float:
-  return float(getattr(controller, f"{state_attr_prefix}_pre_torque_angle_last", float(getattr(controller, "apply_angle_last", 0.0))))
+def _iqlvbs_get_pre_pid_angle_last(controller, state_attr_prefix: str) -> float:
+  return float(getattr(controller, f"{state_attr_prefix}_pre_pid_angle_last", float(getattr(controller, "apply_angle_last", 0.0))))
 
 
-def _iqlvbs_set_pre_torque_angle_last(controller, state_attr_prefix: str, angle_deg: float) -> None:
-  setattr(controller, f"{state_attr_prefix}_pre_torque_angle_last", float(angle_deg))
+def _iqlvbs_set_pre_pid_angle_last(controller, state_attr_prefix: str, angle_deg: float) -> None:
+  setattr(controller, f"{state_attr_prefix}_pre_pid_angle_last", float(angle_deg))
 
 
 def _iqlvbs_apply_angle_limits(desired_angle: float, last_angle: float, active: bool) -> float:
@@ -589,7 +573,7 @@ def _run_pq_alc(controller, CC, CS, actuators, can_sends) -> None:
   else:
     controller.ALC_status = IQLVBS_PQ_HCA_STATUS_READY
     controller.ALC_entryCounter = 0
-  pre_torque_angle_last = _iqlvbs_get_pre_torque_angle_last(controller, "pq_torque_like_angle")
+  pre_pid_angle_last = _iqlvbs_get_pre_pid_angle_last(controller, "pq_pid_angle")
   desired_angle = _iqlvbs_apply_progressive_angle_map(
     actuators.steeringAngleDeg,
     *_iqlvbs_get_pq_prog_map(controller),
@@ -604,22 +588,22 @@ def _run_pq_alc(controller, CC, CS, actuators, can_sends) -> None:
     IQLVBS_TORQUE_BLEND_PQ_MAX_OFFSET_DEG,
   )
   lat_smooth_sec = _iqlvbs_get_lat_smooth_sec(controller)
-  desired_angle = _iqlvbs_smooth_angle_request(desired_angle, pre_torque_angle_last,
+  desired_angle = _iqlvbs_smooth_angle_request(desired_angle, pre_pid_angle_last,
                                                lat_smooth_sec, controller.CCP.STEER_STEP)
   safe_desired_angle = _iqlvbs_apply_angle_limits(
     desired_angle,
-    pre_torque_angle_last,
+    pre_pid_angle_last,
     controller.ALC_status == IQLVBS_PQ_HCA_STATUS_ALC_ANGLE,
   )
-  apply_angle = _iqlvbs_apply_torque_like_angle(
+  apply_angle = _iqlvbs_apply_pid_angle(
     controller,
     CS,
     CS.out.steeringAngleDeg,
     safe_desired_angle,
     controller.ALC_status == IQLVBS_PQ_HCA_STATUS_ALC_ANGLE,
-    "pq_torque_like_angle",
+    "pq_pid_angle",
   )
-  _iqlvbs_set_pre_torque_angle_last(controller, "pq_torque_like_angle", safe_desired_angle)
+  _iqlvbs_set_pre_pid_angle_last(controller, "pq_pid_angle", safe_desired_angle)
 
   if controller.ALC_feedback_engaged and controller.ALC_status == IQLVBS_PQ_HCA_STATUS_ALC_ANGLE:
     controller.alc_rack_angle = apply_angle
@@ -650,7 +634,7 @@ def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None
   else:
     controller.ALC_status = IQLVBS_MQB_HCA_STATUS_READY
 
-  pre_torque_angle_last = _iqlvbs_get_pre_torque_angle_last(controller, "mqb_torque_like_angle")
+  pre_pid_angle_last = _iqlvbs_get_pre_pid_angle_last(controller, "mqb_pid_angle")
   desired_angle = _iqlvbs_apply_progressive_angle_map(
     actuators.steeringAngleDeg,
     IQLVBS_MQB_PROGRESSIVE_ANGLE_MAP_X,
@@ -666,22 +650,22 @@ def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None
     IQLVBS_TORQUE_BLEND_MQB_MAX_OFFSET_DEG,
   )
   lat_smooth_sec = _iqlvbs_get_lat_smooth_sec(controller)
-  desired_angle = _iqlvbs_smooth_angle_request(desired_angle, pre_torque_angle_last,
+  desired_angle = _iqlvbs_smooth_angle_request(desired_angle, pre_pid_angle_last,
                                                lat_smooth_sec, controller.CCP.STEER_STEP)
   safe_desired_angle = _iqlvbs_apply_angle_limits(
     desired_angle,
-    pre_torque_angle_last,
+    pre_pid_angle_last,
     controller.ALC_status == IQLVBS_MQB_HCA_STATUS_ACTIVE,
   )
-  apply_angle = _iqlvbs_apply_torque_like_angle(
+  apply_angle = _iqlvbs_apply_pid_angle(
     controller,
     CS,
     CS.out.steeringAngleDeg,
     safe_desired_angle,
     controller.ALC_status == IQLVBS_MQB_HCA_STATUS_ACTIVE,
-    "mqb_torque_like_angle",
+    "mqb_pid_angle",
   )
-  _iqlvbs_set_pre_torque_angle_last(controller, "mqb_torque_like_angle", safe_desired_angle)
+  _iqlvbs_set_pre_pid_angle_last(controller, "mqb_pid_angle", safe_desired_angle)
 
   if controller.ALC_feedback_engaged and controller.ALC_status == IQLVBS_MQB_HCA_STATUS_ACTIVE:
     controller.alc_rack_angle = apply_angle
