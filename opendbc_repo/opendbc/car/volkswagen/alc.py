@@ -325,6 +325,7 @@ def _iqlvbs_apply_pid_angle(controller, CS, actual_angle_deg: float, safe_desire
       ((float(safe_desired_angle_deg) > 0.0 and float(actual_angle_deg) < 0.0) or
        (float(safe_desired_angle_deg) < 0.0 and float(actual_angle_deg) > 0.0))):
     _iqlvbs_reset_pid_angle(controller, state_attr_prefix)
+    setattr(controller, error_last_attr, angle_error)
     return safe_desired_angle_deg
 
   dt = DT_CTRL * max(int(getattr(controller.CCP, "STEER_STEP", 1)), 1)
