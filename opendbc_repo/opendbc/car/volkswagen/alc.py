@@ -24,15 +24,17 @@ IQLVBS_ALC_REENGAGE_WINDOW_FRAMES = int(10.0 / DT_CTRL)
 IQLVBS_ALC_DOUBLE_SET_MAX_FRAMES = int(1.0 / DT_CTRL)
 IQLVBS_ALC_PID_SIGN_FLIP_MIN_ABS_ANGLE_DEG = 1.0
 IQLVBS_ALC_PID_ERROR_DEADBAND_DEG = 0.0
-IQLVBS_ALC_PID_KP = 0.45
-IQLVBS_ALC_PID_KI = 0.02
-IQLVBS_ALC_PID_KD = 0.006
-IQLVBS_ALC_PID_MAX_CORRECTION_DEG = 7.0
+IQLVBS_ALC_PID_KP = 0.35
+IQLVBS_ALC_PID_KI = 0.01
+IQLVBS_ALC_PID_KD = 0.0
+IQLVBS_ALC_PID_MAX_CORRECTION_DEG = 5.0
 IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG = 0.25
 IQLVBS_ALC_PID_OSC_FULL_ERROR_DEG = 1.5
 IQLVBS_ALC_PID_OSC_FLIP_THRESHOLD = 1
 IQLVBS_ALC_PID_OSC_DAMP_FRAMES_SEC = 0.6
 IQLVBS_ALC_PID_OSC_DAMP_FACTOR = 0.0
+IQLVBS_ALC_PID_CLOSING_RATE_START_DEG_PER_SEC = 35.0
+IQLVBS_ALC_PID_CLOSING_RATE_ZERO_DEG_PER_SEC = 110.0
 IQLVBS_TORQUE_BLEND_DEADBAND_CNM = 150.0
 IQLVBS_TORQUE_BLEND_PQ_SAT_CNM = 360.0
 IQLVBS_TORQUE_BLEND_MQB_SAT_CNM = 550.0
@@ -376,6 +378,14 @@ def _iqlvbs_apply_pid_angle(controller, CS, actual_angle_deg: float, safe_desire
     correction_scale = (error_abs - IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG) / span
   if damping_active:
     correction_scale *= IQLVBS_ALC_PID_OSC_DAMP_FACTOR
+  steering_rate_deg = float(getattr(CS.out, "steeringRateDeg", 0.0))
+  closing_rate = steering_rate_deg if angle_error > 0.0 else -steering_rate_deg
+  if closing_rate > IQLVBS_ALC_PID_CLOSING_RATE_START_DEG_PER_SEC:
+    if closing_rate >= IQLVBS_ALC_PID_CLOSING_RATE_ZERO_DEG_PER_SEC:
+      correction_scale = 0.0
+    else:
+      rate_span = IQLVBS_ALC_PID_CLOSING_RATE_ZERO_DEG_PER_SEC - IQLVBS_ALC_PID_CLOSING_RATE_START_DEG_PER_SEC
+      correction_scale *= 1.0 - ((closing_rate - IQLVBS_ALC_PID_CLOSING_RATE_START_DEG_PER_SEC) / rate_span)
   correction *= correction_scale
   commanded_angle = float(safe_desired_angle_deg) + float(correction)
 
