@@ -28,6 +28,10 @@ IQLVBS_ALC_PID_KP = 0.58
 IQLVBS_ALC_PID_KI = 0.03
 IQLVBS_ALC_PID_KD = 0.012
 IQLVBS_ALC_PID_MAX_CORRECTION_DEG = 9.0
+IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG = 0.35
+IQLVBS_ALC_PID_OSC_FLIP_THRESHOLD = 2
+IQLVBS_ALC_PID_OSC_DAMP_FRAMES_SEC = 0.35
+IQLVBS_ALC_PID_OSC_DAMP_FACTOR = 0.35
 IQLVBS_TORQUE_BLEND_DEADBAND_CNM = 150.0
 IQLVBS_TORQUE_BLEND_PQ_SAT_CNM = 360.0
 IQLVBS_TORQUE_BLEND_MQB_SAT_CNM = 550.0
@@ -268,6 +272,9 @@ def _iqlvbs_reset_pid_angle(controller, state_attr_prefix: str) -> None:
   if pid is not None:
     pid.reset()
   setattr(controller, f"{state_attr_prefix}_error_last", 0.0)
+  setattr(controller, f"{state_attr_prefix}_error_sign_last", 0)
+  setattr(controller, f"{state_attr_prefix}_osc_flip_count", 0)
+  setattr(controller, f"{state_attr_prefix}_osc_damp_frames", 0)
 
 
 def _iqlvbs_get_pid_angle_controller(controller, state_attr_prefix: str):
@@ -291,6 +298,9 @@ def _iqlvbs_apply_pid_angle(controller, CS, actual_angle_deg: float, safe_desire
                             active: bool, state_attr_prefix: str) -> float:
   active_last_attr = f"{state_attr_prefix}_active_last"
   error_last_attr = f"{state_attr_prefix}_error_last"
+  error_sign_last_attr = f"{state_attr_prefix}_error_sign_last"
+  osc_flip_count_attr = f"{state_attr_prefix}_osc_flip_count"
+  osc_damp_frames_attr = f"{state_attr_prefix}_osc_damp_frames"
 
   active_last = bool(getattr(controller, active_last_attr, False))
   setattr(controller, active_last_attr, bool(active))
@@ -319,15 +329,49 @@ def _iqlvbs_apply_pid_angle(controller, CS, actual_angle_deg: float, safe_desire
   error_last = float(getattr(controller, error_last_attr, 0.0))
   error_rate = (angle_error - error_last) / dt if dt > 0.0 else 0.0
   pid = _iqlvbs_get_pid_angle_controller(controller, state_attr_prefix)
+  error_sign = 0
+  if angle_error > IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG:
+    error_sign = 1
+  elif angle_error < -IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG:
+    error_sign = -1
+  error_sign_last = int(getattr(controller, error_sign_last_attr, 0))
+  osc_flip_count = int(getattr(controller, osc_flip_count_attr, 0))
+  osc_damp_frames = int(getattr(controller, osc_damp_frames_attr, 0))
+
+  if error_sign != 0:
+    if (error_sign_last != 0 and error_sign != error_sign_last and
+        abs(error_last) > IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG):
+      osc_flip_count += 1
+    else:
+      osc_flip_count = max(osc_flip_count - 1, 0)
+    setattr(controller, error_sign_last_attr, error_sign)
+  else:
+    osc_flip_count = max(osc_flip_count - 1, 0)
+
+  if osc_flip_count >= IQLVBS_ALC_PID_OSC_FLIP_THRESHOLD:
+    pid.reset()
+    osc_flip_count = 0
+    osc_damp_frames = max(1, int(IQLVBS_ALC_PID_OSC_DAMP_FRAMES_SEC / dt)) if dt > 0.0 else 1
+
+  damping_active = osc_damp_frames > 0
+  if damping_active:
+    osc_damp_frames -= 1
+    error_rate = 0.0
+
   correction = pid.update(
     angle_error,
     error_rate=error_rate,
     speed=float(getattr(CS.out, "vEgoRaw", CS.out.vEgo)),
     override=bool(getattr(CS.out, "steeringPressed", False)),
+    freeze_integrator=damping_active,
   )
+  if damping_active:
+    correction *= IQLVBS_ALC_PID_OSC_DAMP_FACTOR
   commanded_angle = float(safe_desired_angle_deg) + float(correction)
 
   setattr(controller, error_last_attr, angle_error)
+  setattr(controller, osc_flip_count_attr, osc_flip_count)
+  setattr(controller, osc_damp_frames_attr, osc_damp_frames)
   return float(max(min(commanded_angle, IQLVBS_ALC_STEER_ANGLE_MAX), -IQLVBS_ALC_STEER_ANGLE_MAX))
 
 
