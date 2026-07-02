@@ -497,6 +497,10 @@ def _iqlvbs_button_events(CS) -> list:
   return list(getattr(getattr(CS, "out", None), "buttonEvents", []))
 
 
+def _iqlvbs_driver_steering_pressed(CS) -> bool:
+  return bool(getattr(getattr(CS, "out", None), "steeringPressed", False))
+
+
 def _iqlvbs_set_released(controller, CS) -> bool:
   raw_set_pressed = None
   gra_stock_values = getattr(CS, "gra_stock_values", None)
@@ -561,6 +565,7 @@ def _run_pq_alc(controller, CC, CS, actuators, can_sends) -> None:
   override_rearm_saw_inactive = bool(getattr(controller, "ALC_override_rearm_saw_inactive", False))
   cruise_main_enabled = bool(getattr(CS, "cruise_main_switch", True))
   lateral_available = bool(getattr(CS.out, "lateralAvailable", CS.out.cruiseState.available))
+  driver_steering_pressed = _iqlvbs_driver_steering_pressed(CS)
 
   if override_latched and not cruise_main_enabled:
     override_latched = False
@@ -568,7 +573,7 @@ def _run_pq_alc(controller, CC, CS, actuators, can_sends) -> None:
     override_rearm_saw_inactive = False
     _iqlvbs_reset_reengage_state(controller)
 
-  controller.ALC_driverExit = CS.LH2_Abbr in (2, 3, 4, 7) and lateral_available
+  controller.ALC_driverExit = (driver_steering_pressed or CS.LH2_Abbr in (2, 3, 4, 7)) and lateral_available
   reengage_requested = _iqlvbs_double_set_reengage_requested(
     controller,
     CS,
@@ -648,7 +653,9 @@ def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None
   controller.ALC_feedback_entering = exported_alc_entering(CS)
   controller.ALC_feedback_active = exported_alc_active(CS)
   controller.ALC_feedback_engaged = exported_alc_engaged(CS)
-  controller.ALC_driverExit = (CS.EPS_ALC_Status == 10 or CS.EPS_ALC_Abbruch in (7, 10)) and CS.out.cruiseState.available
+  driver_steering_pressed = _iqlvbs_driver_steering_pressed(CS)
+  controller.ALC_driverExit = (driver_steering_pressed or CS.EPS_ALC_Status == 10 or
+                               CS.EPS_ALC_Abbruch in (7, 10)) and CS.out.cruiseState.available
   reengage_requested = _iqlvbs_double_set_reengage_requested(controller, CS, controller.ALC_driverExit)
 
   if controller.ALC_driverExit:
