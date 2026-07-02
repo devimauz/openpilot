@@ -89,10 +89,6 @@ def _iqlvbs_get_param_bool(params, key: str, default: bool = False) -> bool:
     return default
 
 
-def _iqlvbs_get_lat_smooth_sec(controller) -> float:
-  return 0.0
-
-
 def _iqlvbs_get_identity_prog_map(max_angle: float) -> tuple[list[float], list[float]]:
   max_angle = max(float(max_angle), 0.0)
   return [0.0, max_angle], [0.0, max_angle]
@@ -210,15 +206,6 @@ def _iqlvbs_decode_pq_alc_abbr(pt_cp) -> int:
 def _iqlvbs_decode_pq_alc_lwreq(pt_cp) -> int:
   dat = _iqlvbs_get_message_data(pt_cp, "Lenkhilfe_2")
   return _iqlvbs_get_le_bits(dat, 40, 8) if len(dat) >= 7 else 0
-
-
-def _iqlvbs_smooth_angle_request(desired_angle: float, last_angle: float, smooth_sec: float, steer_step: int) -> float:
-  if smooth_sec <= 0:
-    return desired_angle
-
-  dt = DT_CTRL * steer_step
-  alpha = 1 - math.exp(-dt / smooth_sec)
-  return alpha * desired_angle + (1 - alpha) * last_angle
 
 
 def _iqlvbs_interp(x: float, xp: list[float], fp: list[float]) -> float:
@@ -588,9 +575,6 @@ def _run_pq_alc(controller, CC, CS, actuators, can_sends) -> None:
     IQLVBS_TORQUE_BLEND_PQ_SAT_CNM,
     IQLVBS_TORQUE_BLEND_PQ_MAX_OFFSET_DEG,
   )
-  lat_smooth_sec = _iqlvbs_get_lat_smooth_sec(controller)
-  desired_angle = _iqlvbs_smooth_angle_request(desired_angle, pre_pid_angle_last,
-                                               lat_smooth_sec, controller.CCP.STEER_STEP)
   safe_desired_angle = _iqlvbs_apply_angle_limits(
     desired_angle,
     pre_pid_angle_last,
@@ -650,9 +634,6 @@ def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None
     IQLVBS_TORQUE_BLEND_MQB_SAT_CNM,
     IQLVBS_TORQUE_BLEND_MQB_MAX_OFFSET_DEG,
   )
-  lat_smooth_sec = _iqlvbs_get_lat_smooth_sec(controller)
-  desired_angle = _iqlvbs_smooth_angle_request(desired_angle, pre_pid_angle_last,
-                                               lat_smooth_sec, controller.CCP.STEER_STEP)
   safe_desired_angle = _iqlvbs_apply_angle_limits(
     desired_angle,
     pre_pid_angle_last,
