@@ -734,6 +734,7 @@ def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None
 
 _ALC_STATE_PATH = "/data/iqpilot_private/vw_alc_available"
 _alc_available_last: bool | None = None
+_alc_debug_last_line: str = ""
 
 
 def _write_alc_availability(available: bool) -> None:
@@ -749,6 +750,29 @@ def _write_alc_availability(available: bool) -> None:
   _alc_available_last = available
 
 
+def _alc_debug_enabled(controller) -> bool:
+  return True
+
+
+def _alc_debug_log(controller, line: str, *, force: bool = False, interval_frames: int = 25) -> None:
+  global _alc_debug_last_line
+  if not _alc_debug_enabled(controller):
+    return
+
+  frame = int(getattr(controller, "frame", 0))
+  last_frame = int(getattr(controller, "_alc_debug_last_frame", -1))
+  if not force and (line == _alc_debug_last_line) and (frame - last_frame < interval_frames):
+    return
+
+  try:
+    print(f"ALCDBG f={frame} {line}")
+  except Exception:
+    return
+
+  _alc_debug_last_line = line
+  controller._alc_debug_last_frame = frame
+
+
 def update_vw_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None:
   CS.alcOverrideAlert = False
   controller.ALC_feedback_entering = exported_alc_entering(CS)
@@ -758,12 +782,36 @@ def update_vw_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> Non
   _write_alc_availability(bool(getattr(CS, "vw_iq_lvbs_alc_available", False)))
 
   if controller.frame % controller.CCP.STEER_STEP != 0:
+    _alc_debug_log(controller, "skip: steer_step")
     return
 
   if not angle_lateral_control_enabled(controller, CS):
+    _alc_debug_log(
+      controller,
+      f"skip: angle_lateral_control=0 latActive={int(CC.latActive)} alc_avail={int(bool(getattr(CS, 'vw_iq_lvbs_alc_available', False)))}",
+    )
     return
 
   if controller.CCS == pqcan:
     _run_pq_alc(controller, CC, CS, actuators, can_sends)
+    _alc_debug_log(
+      controller,
+      f"pq latActive={int(CC.latActive)} status={int(getattr(controller, 'ALC_status', 0))} "
+      f"fb={int(bool(getattr(controller, 'ALC_feedback_engaged', False)))} "
+      f"driverExit={int(bool(getattr(controller, 'ALC_driverExit', False)))} "
+      f"ovr={int(bool(getattr(controller, 'ALC_override_latched', False)))} "
+      f"abbr={int(getattr(CS, 'LH2_Abbr', 0))} apply={float(getattr(controller, 'apply_angle_last', 0.0)):.2f} "
+      f"steer={float(getattr(CS.out, 'steeringAngleDeg', 0.0)):.2f}",
+    )
   elif controller.CCS == mqbcan:
     _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque)
+    _alc_debug_log(
+      controller,
+      f"mqb latActive={int(CC.latActive)} status={int(getattr(controller, 'ALC_status', 0))} "
+      f"fb={int(bool(getattr(controller, 'ALC_feedback_engaged', False)))} "
+      f"driverExit={int(bool(getattr(controller, 'ALC_driverExit', False)))} "
+      f"reentryBlk={int(bool(getattr(controller, 'ALC_reentry_blocked', False)))} "
+      f"epsStatus={int(getattr(CS, 'EPS_ALC_Status', 0))} abbr={int(getattr(CS, 'EPS_ALC_Abbruch', 0))} "
+      f"apply={float(getattr(controller, 'apply_angle_last', 0.0)):.2f} "
+      f"steer={float(getattr(CS.out, 'steeringAngleDeg', 0.0)):.2f}",
+    )
