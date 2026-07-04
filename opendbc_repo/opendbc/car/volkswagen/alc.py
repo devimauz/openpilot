@@ -28,8 +28,11 @@ IQLVBS_ALC_PID_KP = 0.35
 IQLVBS_ALC_PID_KI = 0.01
 IQLVBS_ALC_PID_KD = 0.0
 IQLVBS_ALC_PID_MAX_CORRECTION_DEG = 5.0
-IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG = 0.25
-IQLVBS_ALC_PID_OSC_FULL_ERROR_DEG = 1.5
+IQLVBS_ALC_PID_OSC_ERROR_MIN_DEG = 0.02
+IQLVBS_ALC_PID_OSC_FULL_ERROR_DEG = 0.5
+IQLVBS_ALC_PID_MIN_CORRECTION_ERROR_DEG = 0.02
+IQLVBS_ALC_PID_MIN_CORRECTION_MAX_ERROR_DEG = 0.5
+IQLVBS_ALC_PID_MIN_CORRECTION_DEG = 0.18
 IQLVBS_ALC_PID_OSC_FLIP_THRESHOLD = 1
 IQLVBS_ALC_PID_OSC_DAMP_FRAMES_SEC = 0.6
 IQLVBS_ALC_PID_OSC_DAMP_FACTOR = 0.0
@@ -387,6 +390,11 @@ def _iqlvbs_apply_pid_angle(controller, CS, actual_angle_deg: float, safe_desire
       rate_span = IQLVBS_ALC_PID_CLOSING_RATE_ZERO_DEG_PER_SEC - IQLVBS_ALC_PID_CLOSING_RATE_START_DEG_PER_SEC
       correction_scale *= 1.0 - ((closing_rate - IQLVBS_ALC_PID_CLOSING_RATE_START_DEG_PER_SEC) / rate_span)
   correction *= correction_scale
+  steering_pressed = bool(getattr(CS.out, "steeringPressed", False))
+  if (not damping_active and not steering_pressed and
+      IQLVBS_ALC_PID_MIN_CORRECTION_ERROR_DEG < error_abs <= IQLVBS_ALC_PID_MIN_CORRECTION_MAX_ERROR_DEG and
+      abs(correction) < IQLVBS_ALC_PID_MIN_CORRECTION_DEG):
+    correction = math.copysign(IQLVBS_ALC_PID_MIN_CORRECTION_DEG, angle_error)
   commanded_angle = float(safe_desired_angle_deg) + float(correction)
 
   setattr(controller, error_last_attr, angle_error)
@@ -751,17 +759,19 @@ def _write_alc_availability(available: bool) -> None:
 
 
 def _alc_debug_enabled(controller) -> bool:
-  return True
+  return False
 
 
-def _alc_debug_log(controller, line: str, *, force: bool = False, interval_frames: int = 25) -> None:
+def _alc_debug_log(controller, line: str, *, key: str | None = None, force: bool = False, interval_frames: int = 500) -> None:
   global _alc_debug_last_line
   if not _alc_debug_enabled(controller):
     return
 
   frame = int(getattr(controller, "frame", 0))
   last_frame = int(getattr(controller, "_alc_debug_last_frame", -1))
-  if not force and (line == _alc_debug_last_line) and (frame - last_frame < interval_frames):
+  state_key = line if key is None else key
+  last_key = str(getattr(controller, "_alc_debug_last_key", ""))
+  if not force and (state_key == last_key) and (frame - last_frame < interval_frames):
     return
 
   try:
@@ -770,6 +780,7 @@ def _alc_debug_log(controller, line: str, *, force: bool = False, interval_frame
     return
 
   _alc_debug_last_line = line
+  controller._alc_debug_last_key = state_key
   controller._alc_debug_last_frame = frame
 
 
@@ -782,14 +793,9 @@ def update_vw_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> Non
   _write_alc_availability(bool(getattr(CS, "vw_iq_lvbs_alc_available", False)))
 
   if controller.frame % controller.CCP.STEER_STEP != 0:
-    _alc_debug_log(controller, "skip: steer_step")
     return
 
   if not angle_lateral_control_enabled(controller, CS):
-    _alc_debug_log(
-      controller,
-      f"skip: angle_lateral_control=0 latActive={int(CC.latActive)} alc_avail={int(bool(getattr(CS, 'vw_iq_lvbs_alc_available', False)))}",
-    )
     return
 
   if controller.CCS == pqcan:
@@ -802,6 +808,12 @@ def update_vw_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> Non
       f"ovr={int(bool(getattr(controller, 'ALC_override_latched', False)))} "
       f"abbr={int(getattr(CS, 'LH2_Abbr', 0))} apply={float(getattr(controller, 'apply_angle_last', 0.0)):.2f} "
       f"steer={float(getattr(CS.out, 'steeringAngleDeg', 0.0)):.2f}",
+      key=(
+        f"pq:{int(CC.latActive)}:{int(getattr(controller, 'ALC_status', 0))}:"
+        f"{int(bool(getattr(controller, 'ALC_feedback_engaged', False)))}:"
+        f"{int(bool(getattr(controller, 'ALC_driverExit', False)))}:"
+        f"{int(bool(getattr(controller, 'ALC_override_latched', False)))}"
+      ),
     )
   elif controller.CCS == mqbcan:
     _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque)
@@ -814,4 +826,10 @@ def update_vw_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> Non
       f"epsStatus={int(getattr(CS, 'EPS_ALC_Status', 0))} abbr={int(getattr(CS, 'EPS_ALC_Abbruch', 0))} "
       f"apply={float(getattr(controller, 'apply_angle_last', 0.0)):.2f} "
       f"steer={float(getattr(CS.out, 'steeringAngleDeg', 0.0)):.2f}",
+      key=(
+        f"mqb:{int(CC.latActive)}:{int(getattr(controller, 'ALC_status', 0))}:"
+        f"{int(bool(getattr(controller, 'ALC_feedback_engaged', False)))}:"
+        f"{int(bool(getattr(controller, 'ALC_driverExit', False)))}:"
+        f"{int(bool(getattr(controller, 'ALC_reentry_blocked', False)))}"
+      ),
     )
