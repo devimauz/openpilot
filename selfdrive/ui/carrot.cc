@@ -3039,7 +3039,9 @@ static void drawSteeringAngleDebug(const UIState* s) {
   const float commanded_angle = car_output.getActuatorsOutput().getSteeringAngleDeg();
 
   char text[128];
-  snprintf(text, sizeof(text), "TGT %.1f   CUR %.1f   CMD %.1f", target_angle, current_angle, commanded_angle);
+  snprintf(text, sizeof(text), "TGT %.1f   CUR %.1f   CMD %.1f   T-C %.1f   C-C %.1f",
+           target_angle, current_angle, commanded_angle,
+           target_angle - commanded_angle, current_angle - commanded_angle);
 
   NVGcontext* vg = s->vg;
   const float font_size = std::clamp(s->fb_w * 0.026f, 30.0f, 42.0f);
