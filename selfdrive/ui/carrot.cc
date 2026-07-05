@@ -1,6 +1,7 @@
 #include "selfdrive/ui/carrot.h"
 
 #include <cassert>
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -3025,6 +3026,44 @@ static void drawLaneCenterIndicator(const UIState *s) {
   }
 }
 
+static void drawSteeringAngleDebug(const UIState* s) {
+  const SubMaster& sm = *(s->sm);
+  if (!sm.alive("carState") || !sm.alive("carControl") || !sm.alive("carOutput")) return;
+
+  const auto car_state = sm["carState"].getCarState();
+  const auto car_control = sm["carControl"].getCarControl();
+  const auto car_output = sm["carOutput"].getCarOutput();
+
+  const float current_angle = car_state.getSteeringAngleDeg();
+  const float target_angle = car_control.getActuators().getSteeringAngleDeg();
+  const float commanded_angle = car_output.getActuatorsOutput().getSteeringAngleDeg();
+
+  char text[128];
+  snprintf(text, sizeof(text), "TGT %.1f   CUR %.1f   CMD %.1f", target_angle, current_angle, commanded_angle);
+
+  NVGcontext* vg = s->vg;
+  const float font_size = std::clamp(s->fb_w * 0.026f, 30.0f, 42.0f);
+  const float x = s->fb_w * 0.5f;
+  const float y = s->fb_h - 34.0f;
+  float bounds[4];
+
+  nvgFontFace(vg, BOLD);
+  nvgFontSize(vg, font_size);
+  nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+  nvgTextBounds(vg, x, y, text, NULL, bounds);
+
+  const float pad_x = 26.0f;
+  const float pad_y = 12.0f;
+  Rect1 bg_rect = {
+    static_cast<int>(bounds[0] - pad_x),
+    static_cast<int>(bounds[1] - pad_y),
+    static_cast<int>((bounds[2] - bounds[0]) + pad_x * 2.0f),
+    static_cast<int>((bounds[3] - bounds[1]) + pad_y * 2.0f),
+  };
+  ui_fill_rect(vg, bg_rect, COLOR_BLACK_ALPHA(135), 14);
+  ui_draw_text(s, x, y, text, font_size, COLOR_WHITE, BOLD, 2.5f, 0.0f, COLOR_BLACK, COLOR_BLACK);
+}
+
 void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
   _model = model_renderer;
   if (s->fb_w != w || s->fb_h != h) {
@@ -3085,6 +3124,8 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
   }
 
   drawTurnInfo.draw(s);
+
+  drawSteeringAngleDebug(s);
 
   ui_draw_text_a2(s);
   ui_draw_alert(s);

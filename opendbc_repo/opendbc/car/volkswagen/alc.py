@@ -719,7 +719,7 @@ def _run_mqb_alc(controller, CC, CS, actuators, can_sends, apply_torque) -> None
     controller.ALC_status == IQLVBS_MQB_HCA_STATUS_ACTIVE,
     "mqb_pid_angle",
   )
-  _iqlvbs_set_pre_pid_angle_last(controller, "mqb_pid_angle", safe_desired_angle)
+  _iqlvbs_set_pre_pid_angle_last(controller, "mqb_pid_angle", apply_angle)
 
   if controller.ALC_feedback_engaged and controller.ALC_status == IQLVBS_MQB_HCA_STATUS_ACTIVE:
     controller.alc_rack_angle = apply_angle
