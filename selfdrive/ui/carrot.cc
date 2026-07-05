@@ -3038,32 +3038,41 @@ static void drawSteeringAngleDebug(const UIState* s) {
   const float target_angle = car_control.getActuators().getSteeringAngleDeg();
   const float commanded_angle = car_output.getActuatorsOutput().getSteeringAngleDeg();
 
-  char text[128];
-  snprintf(text, sizeof(text), "TGT %.1f   CUR %.1f   CMD %.1f   T-C %.1f   C-C %.1f",
-           target_angle, current_angle, commanded_angle,
-           target_angle - commanded_angle, current_angle - commanded_angle);
+  char text1[96];
+  char text2[96];
+  snprintf(text1, sizeof(text1), "TGT %.1f   CUR %.1f   CMD %.1f", target_angle, current_angle, commanded_angle);
+  snprintf(text2, sizeof(text2), "TGT-CMD %.1f   CUR-CMD %.1f", target_angle - commanded_angle, current_angle - commanded_angle);
 
   NVGcontext* vg = s->vg;
-  const float font_size = std::clamp(s->fb_w * 0.026f, 30.0f, 42.0f);
+  const float font_size = std::clamp(s->fb_w * 0.024f, 28.0f, 38.0f);
   const float x = s->fb_w * 0.5f;
-  const float y = s->fb_h - 34.0f;
-  float bounds[4];
+  const float line_gap = font_size + 8.0f;
+  const float y1 = s->fb_h - 72.0f;
+  const float y2 = y1 + line_gap;
+  float bounds1[4];
+  float bounds2[4];
 
   nvgFontFace(vg, BOLD);
   nvgFontSize(vg, font_size);
-  nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-  nvgTextBounds(vg, x, y, text, NULL, bounds);
+  nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+  nvgTextBounds(vg, x, y1, text1, NULL, bounds1);
+  nvgTextBounds(vg, x, y2, text2, NULL, bounds2);
 
   const float pad_x = 26.0f;
   const float pad_y = 12.0f;
+  const float left = std::min(bounds1[0], bounds2[0]) - pad_x;
+  const float top = std::min(bounds1[1], bounds2[1]) - pad_y;
+  const float right = std::max(bounds1[2], bounds2[2]) + pad_x;
+  const float bottom = std::max(bounds1[3], bounds2[3]) + pad_y;
   Rect1 bg_rect = {
-    static_cast<int>(bounds[0] - pad_x),
-    static_cast<int>(bounds[1] - pad_y),
-    static_cast<int>((bounds[2] - bounds[0]) + pad_x * 2.0f),
-    static_cast<int>((bounds[3] - bounds[1]) + pad_y * 2.0f),
+    static_cast<int>(left),
+    static_cast<int>(top),
+    static_cast<int>(right - left),
+    static_cast<int>(bottom - top),
   };
   ui_fill_rect(vg, bg_rect, COLOR_BLACK_ALPHA(135), 14);
-  ui_draw_text(s, x, y, text, font_size, COLOR_WHITE, BOLD, 2.5f, 0.0f, COLOR_BLACK, COLOR_BLACK);
+  ui_draw_text(s, x, y1, text1, font_size, COLOR_WHITE, BOLD, 2.5f, 0.0f, COLOR_BLACK, COLOR_BLACK);
+  ui_draw_text(s, x, y2, text2, font_size, COLOR_WHITE, BOLD, 2.5f, 0.0f, COLOR_BLACK, COLOR_BLACK);
 }
 
 void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
