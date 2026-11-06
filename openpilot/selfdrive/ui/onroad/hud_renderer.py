@@ -1638,6 +1638,39 @@ class PlotRenderer:
     self._title = title
     self._ready = True
 
+  def _draw_steering_angle_debug(self, rect: rl.Rectangle, font) -> None:
+    # VW ALC tuning overlay (ported from carrot.cc drawSteeringAngleDebug).
+    try:
+      sm = ui_state.sm
+      if not (sm.alive['carState'] and sm.alive['carControl'] and sm.alive['carOutput']):
+        return
+      current_angle = float(sm['carState'].steeringAngleDeg)
+      target_angle = float(sm['carControl'].actuators.steeringAngleDeg)
+      commanded_angle = float(sm['carOutput'].actuatorsOutput.steeringAngleDeg)
+    except Exception:
+      return
+
+    text1 = f'TGT {target_angle:.1f}   CUR {current_angle:.1f}   CMD {commanded_angle:.1f}'
+    text2 = f'TGT-CMD {target_angle - commanded_angle:.1f}   CUR-CMD {current_angle - commanded_angle:.1f}'
+
+    font_size = min(max(rect.width * 0.024, 28.0), 38.0)
+    line_gap = font_size + 8.0
+    x = rect.x + rect.width / 2
+    y1 = rect.y + rect.height - 72.0
+    y2 = y1 + line_gap
+
+    w1 = measure_text_cached(font, text1, font_size).x
+    w2 = measure_text_cached(font, text2, font_size).x
+    pad_x, pad_y = 26.0, 12.0
+    left = min(x - w1 / 2, x - w2 / 2) - pad_x
+    right = max(x + w1 / 2, x + w2 / 2) + pad_x
+    top = y1 - font_size / 2 - pad_y
+    bottom = y2 + font_size / 2 + pad_y
+    rl.draw_rectangle(int(left), int(top), int(right - left), int(bottom - top), rl.Color(0, 0, 0, 135))
+
+    draw_text_ui_style(text1, x, y1, font_size, rl.WHITE, font=font, border_width=2.5, shadow_offset=0.0, align='center')
+    draw_text_ui_style(text2, x, y2, font_size, rl.WHITE, font=font, border_width=2.5, shadow_offset=0.0, align='center')
+
   def paint(self, rect: rl.Rectangle, font) -> None:
     if not self._ready or rect.width < 1200:
       return
@@ -1653,3 +1686,6 @@ class PlotRenderer:
       self._title, x_base + 400, y_base - 20, 25, rl.WHITE,
       font=font, border_width=2.0, shadow_offset=4.0, align='center_bottom',
     )
+
+    if self._show_plot_mode == 7:
+      self._draw_steering_angle_debug(rect, font)
