@@ -2,6 +2,7 @@ from opendbc.can import CANParser
 from opendbc.car import Bus, structs
 from opendbc.car.interfaces import CarStateBase
 from opendbc.car.common.conversions import Conversions as CV
+from opendbc.car.volkswagen import alc
 from opendbc.car.volkswagen.values import DBC, CANBUS, NetworkLocation, TransmissionType, GearShifter, \
                                                       CarControllerParams, VolkswagenFlags
 
@@ -19,6 +20,11 @@ class CarState(CarStateBase):
     self.long_control_inhibit = False  # MEB: 차가 종방향 제어를 일시 거부 중 (VMM_02)
     self.upscale_lead_car_signal = False
     self.eps_stock_values = False
+    self.vw_iq_lvbs_alc_available = False
+    self.vw_iq_lvbs_alc_entering = False
+    self.vw_iq_lvbs_alc_active = False
+    self.vw_iq_lvbs_alc_key_slot = 1
+    self.alcOverrideAlert = False
     # MEB (VW ID.4/ID.5) state - ported from infiniteCable2 via id4-meb branch
     self.klr_stock_values = {}
     self.ea_hud_stock_values = {}
@@ -144,7 +150,7 @@ class CarState(CarStateBase):
 
     # Shared logic
 
-    ret.vEgoRaw = float(np.mean([ret.wheelSpeeds.fl, ret.wheelSpeeds.fr, ret.wheelSpeeds.rl, ret.wheelSpeeds.rr]))
+    ret.vEgoRaw = float((ret.wheelSpeeds.fl + ret.wheelSpeeds.fr + ret.wheelSpeeds.rl + ret.wheelSpeeds.rr) / 4)
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
 
     ret.steeringAngleDeg = pt_cp.vl["LWI_01"]["LWI_Lenkradwinkel"] * (1, -1)[int(pt_cp.vl["LWI_01"]["LWI_VZ_Lenkradwinkel"])]
@@ -167,6 +173,7 @@ class CarState(CarStateBase):
     self.eps_stock_values = pt_cp.vl["LH_EPS_03"]
     self.ldw_stock_values = cam_cp.vl["LDW_02"] if self.CP.networkLocation == NetworkLocation.fwdCamera else {}
     self.gra_stock_values = pt_cp.vl["GRA_ACC_01"]
+    alc.update_mqb_carstate_alc_state(self, pt_cp)
 
     ret.buttonEvents = self.create_button_events(pt_cp, self.CCP.BUTTONS)
 
@@ -430,6 +437,10 @@ class CarState(CarStateBase):
                                                                             pt_cp.vl["Gate_Komf_1"]["GK1_Blinker_re"])
     ret.buttonEvents = self.create_button_events(pt_cp, self.CCP.BUTTONS)
     self.gra_stock_values = pt_cp.vl["GRA_Neu"]
+    self.cruise_main_switch = ret.cruiseState.available
+    self.LH2_Abbr = 0
+    self.LH_3_Sign = int(pt_cp.vl["Lenkhilfe_3"]["LH3_BLWSign"])
+    alc.update_pq_carstate_alc_state(self, pt_cp)
 
     # Additional safety checks performed in CarInterface.
     ret.espDisabled = bool(pt_cp.vl["Bremse_1"]["ESP_Passiv_getastet"])
@@ -438,12 +449,9 @@ class CarState(CarStateBase):
     return ret
 
   def update_hca_state(self, hca_status, drive_mode=True):
-    # Treat FAULT as temporary for worst likely EPS recovery time, for cars without factory Lane Assist
-    # DISABLED means the EPS hasn't been configured to support Lane Assist
-    self.eps_init_complete = self.eps_init_complete or (hca_status in ("DISABLED", "READY", "ACTIVE") or self.frame > 600)
-    perm_fault = drive_mode and hca_status == "DISABLED" or (self.eps_init_complete and hca_status == "FAULT")
-    temp_fault = drive_mode and hca_status in ("REJECTED", "PREEMPTED") or not self.eps_init_complete
-    return temp_fault, perm_fault
+    # HCA/LKAS status is unreliable on this branch and can report false faults.
+    # Ignore it for openpilot steer fault events.
+    return False, False
 
   def update_hca_state_meb(self, hca_status, drive_mode=True):
     # MEB EPS: HCA가 idle일 때 "disabled"(0)가 정상 상태. openpilot이 HCA_03을
@@ -544,4 +552,3 @@ class CarState(CarStateBase):
       Bus.pt:  CANParser(DBC[CP.carFingerprint][Bus.pt], pt_messages, CANBUS.pt),
       Bus.cam: CANParser(DBC[CP.carFingerprint][Bus.pt], cam_messages, CANBUS.cam),
     }
-

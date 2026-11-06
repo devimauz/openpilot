@@ -176,7 +176,7 @@ procs = [
   PythonProcess("webrtcd", "openpilot.system.webrtc.webrtcd", notcar),
   PythonProcess("carrot_webrtcd", "openpilot.system.webrtc.carrot_webrtcd", and_(iscar, enable_webrtc)),
   PythonProcess("webjoystick", "openpilot.tools.bodyteleop.web", notcar, enabled=BODYTELEOP_AVAILABLE),
-  PythonProcess("joystick", "openpilot.tools.joystick.joystick_control", and_(joystick, iscar)),
+  PythonProcess("joystick", "openpilot.tools.joystick.joystick_control", and_(joystick, iscar), enabled=False),
 
   # Recovery happens after manager's IPC threads are running. Do not fork that
   # live interpreter: a blocked restart also stops managerState publication.
