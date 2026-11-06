@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent" android:layout_height="match_parent"
+  android:orientation="vertical" android:padding="16dp">
+
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+    android:text="NavBridge — TomTom → comma" android:textSize="20sp" android:paddingBottom="12dp"/>
+
+  <EditText android:id="@+id/etHost" android:layout_width="match_parent"
+    android:layout_height="wrap_content" android:hint="comma device IP (e.g. 192.168.0.22)"
+    android:inputType="text" />
+
+  <EditText android:id="@+id/etDest" android:layout_width="match_parent"
+    android:layout_height="wrap_content" android:hint="destination lat,lon"
+    android:inputType="text" android:layout_marginTop="8dp"/>
+
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:layout_marginTop="12dp">
+    <Button android:id="@+id/btnGo" android:layout_width="0dp" android:layout_weight="1"
+      android:layout_height="wrap_content" android:text="START" />
+    <Button android:id="@+id/btnStop" android:layout_width="0dp" android:layout_weight="1"
+      android:layout_height="wrap_content" android:text="STOP" android:layout_marginStart="8dp"/>
+  </LinearLayout>
+
+  <TextView android:id="@+id/tvLog" android:layout_width="match_parent"
+    android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="16dp"
+    android:fontFamily="monospace" android:textSize="12sp" android:textIsSelectable="true"
+    android:text="idle"/>
+</LinearLayout>
