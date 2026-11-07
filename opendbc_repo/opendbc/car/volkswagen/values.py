@@ -69,7 +69,10 @@ class CarControllerParams:
         Button(structs.CarState.ButtonEvent.Type.accelCruise, "GRA_Neu", "GRA_Up_kurz", [1]),
         Button(structs.CarState.ButtonEvent.Type.decelCruise, "GRA_Neu", "GRA_Down_kurz", [1]),
         Button(structs.CarState.ButtonEvent.Type.cancel, "GRA_Neu", "GRA_Abbrechen", [1]),
-        Button(structs.CarState.ButtonEvent.Type.gapAdjustCruise, "GRA_Neu", "GRA_Zeitluecke", [1]),
+        # Zeitluecke stalk reports an action code (1=dist minus, 2=dist plus, 3=toggle, cf. MEB
+        # value table) — carrot maps the gesture to gap cycle / long-press drive mode, so fire on
+        # any non-idle value; listening for [1] only made most presses invisible.
+        Button(structs.CarState.ButtonEvent.Type.gapAdjustCruise, "GRA_Neu", "GRA_Zeitluecke", [1, 2, 3]),
       ]
 
       self.LDW_MESSAGES = {
@@ -146,7 +149,10 @@ class CarControllerParams:
         Button(structs.CarState.ButtonEvent.Type.accelCruise, "GRA_ACC_01", "GRA_Tip_Hoch", [1]),
         Button(structs.CarState.ButtonEvent.Type.decelCruise, "GRA_ACC_01", "GRA_Tip_Runter", [1]),
         Button(structs.CarState.ButtonEvent.Type.cancel, "GRA_ACC_01", "GRA_Abbrechen", [1]),
-        Button(structs.CarState.ButtonEvent.Type.gapAdjustCruise, "GRA_ACC_01", "GRA_Verstellung_Zeitluecke", [1]),
+        # GRA_Verstellung_Zeitluecke is an ACTION code, not momentary: 1=dist minus, 2=dist plus,
+        # 3=toggle (per MEB VAL table; same stalk silicon on MQB). [1]-only mapping meant carrot's
+        # gap-cycle (short press) and MyDrivingMode (long press) never fired for plus/toggle presses.
+        Button(structs.CarState.ButtonEvent.Type.gapAdjustCruise, "GRA_ACC_01", "GRA_Verstellung_Zeitluecke", [1, 2, 3]),
       ]
 
       self.LDW_MESSAGES = {
