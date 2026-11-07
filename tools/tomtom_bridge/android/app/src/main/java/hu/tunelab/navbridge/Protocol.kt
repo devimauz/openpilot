@@ -2,6 +2,7 @@
 // Python selftest (python feed_sim.py --selftest). No Android deps in this file.
 package hu.tunelab.navbridge
 
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -64,6 +65,21 @@ object Protocol {
     }
   }
 
+  /** TomTom turnAngleInDecimalDegrees: negative = right turn through the circle. */
+  fun rotaryAngleCode(angleDeg: Double): Int {
+    val a = abs(angleDeg)
+    return when {
+      angleDeg >= -10 && angleDeg <= 10 -> 142
+      angleDeg < 0 && a <= 25 -> 131
+      angleDeg < 0 && a <= 95 -> 133
+      angleDeg < 0 && a <= 135 -> 134
+      angleDeg < 0 -> 135
+      angleDeg > 0 && a <= 25 -> 140
+      angleDeg > 0 && a <= 95 -> 139
+      else -> 136
+    }
+  }
+
   /** maneuver names accepted from BOTH TomTom SDK (SCREAMING) and REST guidance (camelCase). */
   fun normManeuver(raw: String): String {
     val rest = mapOf(
@@ -94,8 +110,15 @@ data class Maneuver(
   val exitNumber: Int? = null,
   val numExits: Int? = null,
   val radiusM: Double? = null,
+  val junction: String? = null,
+  val turnAngleDeg: Double? = null,
 ) {
   fun turnCode(): Int? {
+    if (junction == "ROUNDABOUT") {
+      turnAngleDeg?.let { return Protocol.rotaryAngleCode(it) }
+      if (exitNumber != null) return Protocol.roundaboutExitCode(exitNumber, numExits ?: 4)
+      return 142
+    }
     val norm = Protocol.normManeuver(type)
     Protocol.TURN[norm]?.let { return it }
     if (norm == "EXIT_ROUNDABOUT" && exitNumber != null)

@@ -11,8 +11,8 @@ android {
     applicationId = "hu.tunelab.navbridge"
     minSdk = 26
     targetSdk = 34
-    versionCode = 1
-    versionName = "0.5"
+    versionCode = 7
+    versionName = "0.7"
     // Put these in gradle.properties / local.properties or use BuildConfig fields
     buildConfigField("String", "TOMTOM_API_KEY", "\"${project.findProperty("TomTomApiKey") ?: ""}\"")
   }
