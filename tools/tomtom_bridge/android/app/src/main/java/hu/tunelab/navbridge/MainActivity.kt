@@ -1,6 +1,7 @@
 package hu.tunelab.navbridge
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -12,13 +13,17 @@ import androidx.core.app.ActivityCompat
 
 class MainActivity : AppCompatActivity() {
   private lateinit var tvLog: TextView
+  private val logReceiver = object : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context?, intent: Intent?) { renderLogs() }
+  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_main)
     tvLog = findViewById(R.id.tvLog)
 
-    findViewById<EditText>(R.id.etHost).setText("192.168.0.22")
+    findViewById<EditText>(R.id.etHost).setText("")
+    findViewById<EditText>(R.id.etHost).hint = "comma IP — empty = auto-discover"
     findViewById<EditText>(R.id.etDest).setText("47.2254,16.6288")
 
     findViewById<Button>(R.id.btnGo).setOnClickListener { ensurePerms { startBridge() } }
@@ -26,6 +31,24 @@ class MainActivity : AppCompatActivity() {
       stopService(Intent(this, BridgeService::class.java))
       tvLog.text = "stopped"
     }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    androidx.core.content.ContextCompat.registerReceiver(
+      this, logReceiver, android.content.IntentFilter("hu.tunelab.navbridge.LOG"),
+      androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+    renderLogs()
+  }
+
+  override fun onPause() {
+    super.onPause()
+    try { unregisterReceiver(logReceiver) } catch (_: Exception) {}
+  }
+
+  private fun renderLogs() {
+    val lines = synchronized(BridgeService.logs) { BridgeService.logs.takeLast(25) }
+    tvLog.text = lines.joinToString("\n")
   }
 
   private fun startBridge() {

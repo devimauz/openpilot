@@ -55,8 +55,14 @@ class BridgeService : Service(), NavSource {
     val nav = TomTomRestNavSource(applicationContext,
       intent.getStringExtra(EXTRA_API_KEY) ?: "",
       onUpdate = { snap ->
-        val n = feed?.pushItems(snap.buildItems()) ?: 0
-        statusText = "feeding — ${snap.routeRemainM} m left (pushed $n)"
+        val f = feed
+        val n = f?.pushItems(snap.buildItems()) ?: 0
+        val fs = when {
+          f == null -> "no-feed"
+          !f.connected -> "connecting"
+          else -> "live@${f.host}"
+        }
+        statusText = "feeding ($fs) — ${snap.routeRemainM} m left, pushed $n"
         refresh()
       },
       onLog = { log(it) })
@@ -120,6 +126,7 @@ class BridgeService : Service(), NavSource {
   private fun refresh() {
     val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     nm.notify(1, notif("NavBridge: $statusText"))
+    sendBroadcast(Intent("hu.tunelab.navbridge.LOG"))
   }
 
   private fun notif(text: String): Notification = NotificationCompat.Builder(this, "bridge")

@@ -50,8 +50,12 @@ feeds `carrotNavi` cereal → `carrot_serv`/`CarrotNaviControl` → speed-limit 
              remaining_time_sec, progress(0-1), suspended, off_route}}`
   - `sdi.type ∈ [0,1,2,3,4,7,8,75,76]` + `speed_limit_kph>0` ⇒ active limit control (xSpdLimit).
   - `sdi.block_type ∈ [2,3]` ⇒ decel point uses `block_distance_m`, target `block_speed_kph`.
-  - **The next speed-limit change is `sdi`** (distance_m + new limit); the one after → `sdi_secondary`.
-  - **A roundabout/turn entry target** can ride in the same `sdi` as block fields while `type=3`.
+  - **sdi is ENFORCEMENT-ONLY (speed camera / section control).** Any non-zero sdi replaces the
+    HUD speed-limit box with the blinking red/yellow "CAM" display (`carrot_serv._update_sdi` →
+    `xSpdLimit>0`, `hud_renderer._draw_carrot_speed_limit_box`), so navigation data MUST NOT use it.
+  - **NavBridge sends no sdi at all**: carrot's `speed_n_sources` already include `(road_limit_kph, "road")`
+    limit deceleration, `vturn` (model-path curve) and `route` (fed polyline curve, `TurnSpeedControlMode≥2`),
+    and junction behavior comes from the `guidance_*` turn codes (also `desire` for lane choice).
 - `route`: `{remain_distance_m, remain_time_sec, moved_distance_m, moved_time_sec,
   total_distance_m, polyline:[{lat,lon}× ≤256]}`
 - `navigation_status`: `{mode, guidance_active, off_route, route_present}`
@@ -84,8 +88,8 @@ arrive/notification = display only.
 - `EXIT_ROUNDABOUT` → keep the chosen exit code as `guidance_current` until ~10 m past point,
   then send `guidance_current` = next maneuver.
 - `KEEP_LEFT/KEEP_RIGHT/fork-ish road names` → 1002/1003 or 6/7 (heuristic; refine per signage).
-- Speed-limit sections: current limit → `road_limit_kph` (round DOWN to 10-step);
-  next section change → `sdi {type:3, distance_m: meters to change, speed_limit_kph:new}`.
+- Speed-limit sections: current limit → `road_limit_kph` (round DOWN to 10-step). Do NOT feed the
+  next change as `sdi` — the `road` speed source in carrot handles the new limit when you enter it.
 - Roundabout/junction entry speed (no TomTom "recommended speed" on all maneuvers):
   `v = sqrt(a_lat * R)` with a_lat ≈ 2.8 m/s² and R from the SDK curve/geometry helper;
   fallbacks: rotary 25-30, turn 30, sharp 20, off-ramp 40.

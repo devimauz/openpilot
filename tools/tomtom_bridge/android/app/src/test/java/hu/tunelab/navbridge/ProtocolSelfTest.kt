@@ -54,17 +54,16 @@ class ProtocolSelfTest {
       (speed["road_limit_kph"] as? Int)?.let {
         assertTrue("limit step", it % 10 == 0 && it in 1..200)
       }
-      (speed["sdi"] as? Map<*, *>)?.let { sdi ->
-        assertTrue("sdi type", Protocol.SPEED_CTRL_TYPES.contains(sdi["type"]))
-        assertTrue("sdi speed", (sdi["speed_limit_kph"] as Int) in 1..300)
-      }
+      assertTrue("sdi is enforcement-only", !speed.containsKey("sdi"))
+      assertTrue("no sdi_secondary", !speed.containsKey("sdi_secondary"))
     }
     val sp20 = snap(20).buildItems()["speed"]!!["value"] as Map<*, *>
-    assertEquals(30, (sp20["sdi"] as Map<*, *>)["speed_limit_kph"])
+    assertEquals(50, sp20["road_limit_kph"])
+    assertEquals("next limit change is NOT fed as sdi", null, sp20["sdi"])
     val sp45 = snap(45).buildItems()["speed"]!!["value"] as Map<*, *>
-    assertEquals(146, (sp45["sdi"] as Map<*, *>)["distance_m"])
+    assertEquals("roundabout decel rides guidance+road sources", null, sp45["sdi"])
     val sp60 = snap(60).buildItems()["speed"]!!["value"] as Map<*, *>
-    assertEquals("turn beats limit lift", 30, (sp60["sdi"] as Map<*, *>)["speed_limit_kph"])
+    assertEquals(30, sp60["road_limit_kph"])
     assertEquals(13, snap(65).maneuverNow!!.turnCode())
     assertEquals(133, snap(45).maneuverNow!!.turnCode())
   }

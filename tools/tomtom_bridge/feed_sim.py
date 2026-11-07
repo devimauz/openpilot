@@ -108,17 +108,15 @@ def selftest() -> None:
   assert m.turn_code() == 133, f"roundabout right exit -> 133, got {m.turn_code()}"
   assert scenario_snapshot(65).maneuver_now.turn_code() == 13
   sp = scenario_snapshot(20).build_items()["speed"]["value"]
-  assert sp["sdi"]["speed_limit_kph"] == 30 and sp["road_limit_kph"] == 50
+  assert sp["road_limit_kph"] == 50 and "sdi" not in sp and "sdi_secondary" not in sp, \
+    f"sdi is enforcement-only, feed must never set it: {sp}"
   sp45 = scenario_snapshot(45).build_items()["speed"]["value"]
-  assert sp45["sdi"]["distance_m"] == 146 and sp45["sdi"]["speed_limit_kph"] <= 30, \
-    f"roundabout decel block must ride in sdi without any limit change: {sp45.get('sdi')}"
+  assert "sdi" not in sp45, f"roundabout decel rides on guidance+road sources, not sdi: {sp45}"
   sp60 = scenario_snapshot(60).build_items()["speed"]["value"]
-  assert sp60["road_limit_kph"] == 30 and sp60["sdi"]["speed_limit_kph"] == 30 \
-    and sp60["sdi"]["distance_m"] == 168, f"turn block must beat limit lift: {sp60['sdi']}"
+  assert sp60["road_limit_kph"] == 30 and "sdi" not in sp60
   sp65 = scenario_snapshot(65).build_items()["speed"]["value"]
-  assert sp65["sdi"]["block_speed_kph"] == 30 and sp65["sdi_secondary"]["speed_limit_kph"] == 50, \
-    f"limit lift demoted to secondary: {sp65}"
-  print("SELFTEST PASS - 28 catalog, envelopes, limits (10-step), sdi types, " +
+  assert sp65["road_limit_kph"] == 30 and "sdi_secondary" not in sp65
+  print("SELFTEST PASS - 28 catalog, envelopes, limits (10-step), no-sdi policy, " +
         "turn codes (rotary 133 / turn 13), distance+limit scenarios OK")
 
 

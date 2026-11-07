@@ -142,51 +142,9 @@ class NaviSnapshot:
     limit = snap_road_limit(self.current_limit_kph)
     if limit:
       speed["road_limit_kph"] = limit
-
-    candidates: list[tuple[int, dict, bool]] = []
-    nc = self.next_change
-    if nc and nc.limit_kph:
-      candidates.append((int(nc.distance_m), {
-        "type": SDI_LIMIT_TYPE, "distance_m": int(nc.distance_m),
-        "speed_limit_kph": int(nc.limit_kph), "section_type": -1,
-        "block_type": BLOCK_CURVE_TYPE,
-        "block_speed_kph": int(snap_road_limit(nc.limit_kph) or nc.limit_kph),
-        "block_distance_m": int(nc.distance_m)}, False))
-    m = self.maneuver_now
-    if m and m.type.upper().startswith(("ROUNDABOUT", "EXIT_ROUNDABOUT", "TURN_", "SHARP_",
-                                         "SLIGHT_", "OFF_RAMP", "FORK")) and m.distance_m <= 350:
-      entry = m.entry_speed_kph()
-      if entry:
-        candidates.append((int(m.distance_m), {
-          "type": 3, "distance_m": int(m.distance_m), "speed_limit_kph": int(entry),
-          "section_type": -1, "block_type": BLOCK_CURVE_TYPE,
-          "block_speed_kph": int(entry), "block_distance_m": int(m.distance_m)}, True))
-    demoted = None
-    if candidates:
-      # sdi slot priority: an active maneuver decel block (safety-critical) beats a
-      # limit change; the loser is demoted to sdi_secondary so no info is dropped.
-      limit_cand = next((c for c in candidates if not c[2]), None)
-      man_cand = next((c for c in candidates if c[2]), None)
-      if man_cand:
-        speed["sdi"] = man_cand[1]
-        demoted = limit_cand
-      elif limit_cand:
-        speed["sdi"] = limit_cand[1]
-        demoted = None
-      else:
-        demoted = None
-    sc = self.second_change
-    secondary = None
-    if demoted:
-      demoted_val = dict(demoted[1])
-      if sc is None or sc.distance_m is None or demoted[0] <= sc.distance_m:
-        secondary = demoted_val
-    if secondary is None and sc:
-      secondary = {"type": SDI_LIMIT_TYPE, "distance_m": int(sc.distance_m),
-                   "speed_limit_kph": int(sc.limit_kph), "section_type": -1,
-                   "block_type": -1, "block_speed_kph": 0, "block_distance_m": 0}
-    if secondary:
-      speed["sdi_secondary"] = secondary
+    # No sdi: carrot's "road"/"vturn"/"route" speed sources already decelerate for limits and
+    # maneuvers from this feed. sdi/sdi_secondary are enforcement-only (camera/section) — using
+    # them for maneuvers/limit-changes hijacks the HUD box from "LIMIT" to blinking "CAM".
     return speed
 
   def build_items(self) -> dict[str, dict]:
