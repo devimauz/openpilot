@@ -18,6 +18,8 @@ class NaviFeedClient:
   def __init__(self, host: str, port: int = 7714, app_version: str = "tomtom-bridge-1.0") -> None:
     self.host, self.port, self.app_version = host, port, app_version
     self.session_id: str | None = None
+    self.revision = 0
+    self.handles: dict[str, tuple[int, int]] = {}
     self._seq: dict[str, int] = {}
     self._socks: dict[str, any] = {}
     self.last_sent: dict[str, dict] = {}
@@ -35,6 +37,9 @@ class NaviFeedClient:
     if manifest.get("type") != "subscription_manifest":
       raise RuntimeError(f"bad handshake reply: {manifest}")
     self.session_id = manifest["session_id"]
+    self.revision = int(manifest.get("revision", 0))
+    self.handles = {s["name"]: (int(s["stream_handle"]), int(s["schema_version"]))
+                    for s in manifest.get("streams", [])}
     for name in JSON_NAMES:
       sock = await websockets.connect(self._item_url(name), open_timeout=5, max_size=2**23)
       self._socks[name] = sock
@@ -44,8 +49,11 @@ class NaviFeedClient:
   def _envelope(self, name: str, item: dict) -> dict:
     self._seq[name] += 1
     ms = now_ms()
+    handle, schema = self.handles.get(name, (-1, 1))
     env = {"type": "item_update", "protocol_version": PROTOCOL_VERSION,
            "session_id": self.session_id, "kind": "json", "name": name,
+           "manifest_revision": self.revision, "stream_handle": handle,
+           "schema_version": schema,
            "sequence": self._seq[name], "source_timestamp_ms": ms, "sent_at_ms": ms}
     if item.get("present"):
       env["present"] = True
