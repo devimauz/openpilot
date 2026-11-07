@@ -193,13 +193,28 @@ class TomTomRestNavSource(
   )
 
   private fun projectProgress(lat: Double, lon: Double): Double {
-    var best = 0.0
+    // True closest-point projection: fraction t along the winning segment. The old
+    // midpoint approximation (t=0.5) made moved_m lead the car by up to half a segment,
+    // so the carrot countdown read ~15 m short right before junctions (sparse polylines).
     var bestD = Double.MAX_VALUE
+    var bestPos = 0.0
+    val kx = 111320.0 * cos(Math.toRadians(lat))
     for (i in 0 until routePoints.size - 1) {
-      val d = pointSegMeters(lat, lon, routePoints[i], routePoints[i + 1])
-      if (d < bestD) { bestD = d; best = cum[i] + meters(routePoints[i], routePoints[i + 1]) * 0.5 }
+      val a = routePoints[i]
+      val b = routePoints[i + 1]
+      val px = (lon - a.lon) * kx
+      val py = (lat - a.lat) * 110540.0
+      val dx = (b.lon - a.lon) * kx
+      val dy = (b.lat - a.lat) * 110540.0
+      val len2 = dx * dx + dy * dy
+      val t = if (len2 == 0.0) 0.0 else ((px * dx + py * dy) / len2).coerceIn(0.0, 1.0)
+      val d = hypot(px - t * dx, py - t * dy)
+      if (d < bestD) {
+        bestD = d
+        bestPos = cum[i] + t * hypot(dx, dy)
+      }
     }
-    return best
+    return bestPos
   }
 
   private fun offRoute(lat: Double, lon: Double): Boolean {
