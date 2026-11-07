@@ -193,6 +193,8 @@ class TomTomRestNavSource(
   )
 
   private fun projectProgress(lat: Double, lon: Double): Double {
+    // v0.13: reverted to the v0.11 midpoint approximation on user request (v0.12 exact
+    // perpendicular projection rolled back). moved_m can lead by up to half a segment.
     var best = 0.0
     var bestD = Double.MAX_VALUE
     for (i in 0 until routePoints.size - 1) {
