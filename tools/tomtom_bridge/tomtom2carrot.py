@@ -26,7 +26,10 @@ CATALOG = ([("json", n) for n in JSON_NAMES]
 
 # carrot nav_type_mapping codes (see README for table)
 TURN = {"TURN_LEFT": 12, "TURN_RIGHT": 13, "SHARP_LEFT": 16, "SHARP_RIGHT": 19,
-        "SLIGHT_LEFT": 1000, "SLIGHT_RIGHT": 1001, "MAKE_UTURN": 14,
+        # SLIGHT_* -> 0: carrot maps 1000/1001 to a FULL turn brake (ATC decel from ~200 m to
+        # AutoTurnControlSpeedTurn); TomTom uses slight_* for priority-road curves where that is
+        # wrong. Banner text stays; code unknown to nav_type_mapping -> no turn deceleration.
+        "SLIGHT_LEFT": 0, "SLIGHT_RIGHT": 0, "MAKE_UTURN": 14,
         "ARRIVE": 201, "KEEP_LEFT": 44, "KEEP_RIGHT": 43,
         "ROUNDABOUT_STRAIGHT": 142, "ROUNDABOUT_SLIGHT_RIGHT": 131,
         "ROUNDABOUT_RIGHT": 133, "ROUNDABOUT_SHARP_RIGHT": 134,
