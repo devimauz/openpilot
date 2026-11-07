@@ -31,15 +31,15 @@ class MainActivity : AppCompatActivity() {
   private fun startBridge() {
     val host = findViewById<EditText>(R.id.etHost).text.toString().trim()
     val dest = findViewById<EditText>(R.id.etDest).text.toString().trim()
-    if (host.isEmpty() || dest.count { it == ',' } != 1) {
-      tvLog.text = "need device IP and 'lat,lon' destination"; return
+    if (dest.count { it == ',' } != 1) {
+      tvLog.text = "need 'lat,lon' destination (host empty = auto-discover)"; return
     }
     startForegroundService(Intent(this, BridgeService::class.java).apply {
       putExtra(BridgeService.EXTRA_HOST, host)
       putExtra(BridgeService.EXTRA_API_KEY, BuildConfig.TOMTOM_API_KEY)
       putExtra(BridgeService.EXTRA_DEST, dest)
     })
-    tvLog.text = "starting bridge -> $host, dest $dest\n(watch the notification for live status)"
+    tvLog.text = "starting bridge -> host=${host.ifEmpty { "AUTO" }}, dest $dest\n(watch the notification for live status)"
   }
 
   private fun ensurePerms(go: () -> Unit) {
