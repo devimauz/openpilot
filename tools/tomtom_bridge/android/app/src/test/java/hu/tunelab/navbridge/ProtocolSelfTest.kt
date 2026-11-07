@@ -82,6 +82,7 @@ class ProtocolSelfTest {
       exitNumber = 2, numExits = 4).turnCode())
     // plain turns pass through the code table unchanged
     assertEquals(12, Maneuver("TURN_LEFT").turnCode())
-    assertEquals(1001, Maneuver("SLIGHT_RIGHT").turnCode())
+    // slights suppressed -> carrot ATC must not brake for priority-road curves
+    assertEquals(0, Maneuver("SLIGHT_RIGHT").turnCode())
   }
 }

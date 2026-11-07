@@ -36,7 +36,10 @@ object Protocol {
 
   val TURN = mapOf(
     "TURN_LEFT" to 12, "TURN_RIGHT" to 13, "SHARP_LEFT" to 16, "SHARP_RIGHT" to 19,
-    "SLIGHT_LEFT" to 1000, "SLIGHT_RIGHT" to 1001, "MAKE_UTURN" to 14, "ARRIVE" to 201,
+    // SLIGHT_* intentionally map to 0 (unknown to nav_type_mapping): carrot maps 1000/1001 to a
+    // FULL turn brake (xTurnInfo 1/2 -> ATC decel from ~200 m to AutoTurnControlSpeedTurn), but
+    // TomTom uses slight_* for keep-on-priority-road curves where that is wrong. Banner text stays.
+    "SLIGHT_LEFT" to 0, "SLIGHT_RIGHT" to 0, "MAKE_UTURN" to 14, "ARRIVE" to 201,
     "KEEP_LEFT" to 44, "KEEP_RIGHT" to 43,
     "ROUNDABOUT_STRAIGHT" to 142, "ROUNDABOUT_SLIGHT_RIGHT" to 131, "ROUNDABOUT_RIGHT" to 133,
     "ROUNDABOUT_SHARP_RIGHT" to 134, "ROUNDABOUT_SLIGHT_LEFT" to 140, "ROUNDABOUT_LEFT" to 139,
