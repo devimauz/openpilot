@@ -168,41 +168,9 @@ data class NaviSnapshot(
   fun buildItems(): Map<String, Map<String, Any?>> {
     val speed = mutableMapOf<String, Any?>("current_kph" to speedKph)
     Protocol.snapRoadLimit(currentLimitKph).let { if (it > 0) speed["road_limit_kph"] = it }
-
-    val limitCand = nextChange?.takeIf { it.limitKph > 0 }?.let { nc ->
-      mapOf("type" to Protocol.SDI_LIMIT_TYPE, "distance_m" to nc.distanceM,
-        "speed_limit_kph" to nc.limitKph, "section_type" to -1,
-        "block_type" to Protocol.BLOCK_CURVE_TYPE,
-        "block_speed_kph" to (Protocol.snapRoadLimit(nc.limitKph).let { if (it > 0) it else nc.limitKph }),
-        "block_distance_m" to nc.distanceM)
-    }
-    val m = maneuverNow
-    val mNorm = m?.let { Protocol.normManeuver(it.type) } ?: ""
-    val manCand = if (m != null && mNorm.startsWith("ROUNDABOUT") && !mNorm.startsWith("ROUNDABOUT_EXIT")
-        || mNorm.startsWith("EXIT_ROUNDABOUT") || mNorm.startsWith("TURN_") || mNorm.startsWith("SHARP_")
-        || mNorm.startsWith("SLIGHT_") || mNorm.startsWith("OFF_RAMP") || mNorm.startsWith("FORK")
-        || mNorm == "ROUNDABOUT_ENTRY") {
-      val entry = m!!.entrySpeedKph()
-      if (entry > 0 && m.distanceM <= 350) mapOf(
-        "type" to 3, "distance_m" to m.distanceM, "speed_limit_kph" to entry,
-        "section_type" to -1, "block_type" to Protocol.BLOCK_CURVE_TYPE,
-        "block_speed_kph" to entry, "block_distance_m" to m.distanceM)
-      else null
-    } else null
-
-    val demoted: Map<String, Any?>? = when {
-      manCand != null -> { speed["sdi"] = manCand; limitCand }
-      limitCand != null -> { speed["sdi"] = limitCand; null }
-      else -> null
-    }
-    secondChange?.let { sc ->
-      val demotedDist = (demoted?.get("distance_m") as? Int) ?: Int.MAX_VALUE
-      if (demoted != null && demotedDist <= sc.distanceM) speed["sdi_secondary"] = demoted
-      else speed["sdi_secondary"] = mapOf("type" to Protocol.SDI_LIMIT_TYPE, "distance_m" to sc.distanceM,
-        "speed_limit_kph" to sc.limitKph, "section_type" to -1,
-        "block_type" to -1, "block_speed_kph" to 0, "block_distance_m" to 0)
-    } ?: demoted?.let { speed["sdi_secondary"] = it }
-
+    // No sdi: carrot's "road"/"vturn"/"route" speed sources already decelerate for limits and
+    // maneuvers from this feed. sdi/sdi_secondary are enforcement-only (camera/section) — using
+    // them for maneuvers/limit-changes hijacks the HUD box from "LIMIT" to blinking "CAM".
     val items = mutableMapOf<String, Map<String, Any?>>()
     items["vehicle"] = mapOf("present" to true, "value" to mapOf(
       "lat" to lat, "lon" to lon, "heading_deg" to headingDeg, "speed_kph" to speedKph,

@@ -11,7 +11,7 @@ import okhttp3.WebSocketListener
 import java.util.concurrent.ConcurrentHashMap
 
 class FeedClient(
-  private val host: String,
+  val host: String,
   private val port: Int = 7714,
   private val appVersion: String = "tomtom-bridge-0.5",
   private val onLog: (String) -> Unit = {},
@@ -23,6 +23,8 @@ class FeedClient(
   private val socks = ConcurrentHashMap<String, WebSocket>()
   private val lastSent = ConcurrentHashMap<String, String>()
   private var control: WebSocket? = null
+  @Volatile private var revision: Int = 0
+  private val handles = ConcurrentHashMap<String, Pair<Int, Int>>()
 
   @Volatile var sessionId: String? = null
     private set
@@ -54,9 +56,16 @@ class FeedClient(
         when (map["type"]) {
           "subscription_manifest" -> {
             sessionId = map["session_id"] as? String
+            revision = (map["revision"] as? Double)?.toInt() ?: 0
+            (map["streams"] as? List<*>)?.forEach { s ->
+              val s = s as? Map<*, *> ?: return@forEach
+              val name = s["name"] as? String ?: return@forEach
+              handles[name] = ((s["stream_handle"] as? Double)?.toInt() ?: -1) to
+                ((s["schema_version"] as? Double)?.toInt() ?: 1)
+            }
             openItemSockets()
             connected = true
-            onLog("navi session=$sessionId ready")
+            onLog("navi session=$sessionId ready (rev=$revision)")
             onReady()
           }
           "protocol_error" -> {
@@ -104,9 +113,11 @@ class FeedClient(
       val s = (seq[name] ?: 0) + 1
       seq[name] = s
       val now = System.currentTimeMillis()
+      val (handle, schema) = handles[name] ?: (-1 to 1)
       val env = mutableMapOf<String, Any?>(
         "type" to "item_update", "protocol_version" to Protocol.PROTOCOL_VERSION,
         "session_id" to sid, "kind" to "json", "name" to name,
+        "manifest_revision" to revision, "stream_handle" to handle, "schema_version" to schema,
         "sequence" to s, "source_timestamp_ms" to now, "sent_at_ms" to now)
       if (item["present"] == true) {
         env["present"] = true
